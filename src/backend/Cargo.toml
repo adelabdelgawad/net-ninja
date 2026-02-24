@@ -1,0 +1,115 @@
+[package]
+name = "net-ninja"
+version = "0.1.1"
+edition = "2021"
+authors = ["NetNinja Team"]
+description = "Network monitoring tool with quota checking and speed testing"
+license = "MIT"
+repository = "https://github.com/AdelDima/netninja"
+homepage = "https://github.com/AdelDima/netninja"
+
+[lib]
+name = "net_ninja"
+path = "src/lib.rs"
+
+[dependencies]
+# Async runtime - minimal features only
+tokio = { version = "1.43", features = ["rt-multi-thread", "sync", "net", "macros", "time"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Database - minimal features
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono"] }
+platform-dirs = "0.3"
+
+# HTTP client
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "blocking"] }
+futures-util = "0.3"
+
+# Browser automation
+chaser-oxide = { git = "https://github.com/ccheshirecat/chaser-oxide" }
+dirs = "5.0"           # For app data directory
+zip = "2.2"            # For extracting downloaded Chrome
+
+# Scheduler
+tokio-cron-scheduler = { version = "0.13", default-features = false }
+
+# Configuration
+dotenvy = "0.15"
+toml = "0.8"
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUIDs
+uuid = { version = "1.11", features = ["v4", "serde"] }
+
+# Cryptography
+sha2 = "0.10"
+aes-gcm = "0.10"
+base64 = "0.22"
+
+# Logging/tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "env-filter", "chrono"] }
+
+# Error handling
+thiserror = "2.0"
+
+# Validation
+validator = { version = "0.19", features = ["derive"] }
+
+# Random number generation
+rand = "0.8"
+
+# Email
+lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "builder", "smtp-transport", "pool"] }
+
+# NTLM authentication (for Exchange EWS)
+md4 = "0.9"
+md5 = "0.7"
+hmac = "0.12"
+
+# Tauri (for standalone mode) - minimal features for size
+tauri = { version = "2.9", features = ["tray-icon"] }
+
+# Windows-specific dependencies for service support
+[target.'cfg(windows)'.dependencies]
+windows-service = "0.7"
+windows = { version = "0.58", features = [
+    "Win32_UI_Shell",
+    "Win32_System_Com",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading",
+    "Win32_Security"
+] }
+
+[build-dependencies]
+tauri-build = "2.5"
+
+[[bin]]
+name = "netninja-service"
+path = "src/bin/service.rs"
+required-features = ["service"]
+
+[features]
+default = []
+service = []
+
+[profile.dev]
+# Completely disable debug info to prevent PDB errors on Windows
+debug = 0
+split-debuginfo = "off"
+incremental = false
+debug-assertions = false
+overflow-checks = false
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = "s"
+panic = "unwind"

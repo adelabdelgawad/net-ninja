@@ -1,0 +1,61 @@
+# NetNinja Configuration Example
+# Copy this file to config.toml and adjust values as needed
+
+# Application mode: "server" or "standalone"
+# - server: Runs as HTTP API server (default)
+# - standalone: Runs as desktop application with Tauri UI
+app_mode = "server"
+
+# Feature flags (optional, defaults are mode-appropriate)
+# For server mode: enable_http_api = true, enable_tauri_commands = false
+# For standalone mode: enable_http_api = false, enable_tauri_commands = true
+enable_http_api = true
+enable_tauri_commands = false
+enable_scheduler = true
+
+# Server base URL (optional, used for external references)
+# server_base_url = "http://localhost:8080"
+
+[database]
+# PostgreSQL connection URL
+url = "postgresql://netninja:password@localhost/netninja"
+
+[server]
+# HTTP server configuration (server mode only)
+host = "0.0.0.0"
+port = 8080
+
+[webdriver]
+# Chrome browser configuration for web scraping
+# chrome_path = "/usr/bin/chromium"  # Optional, auto-detected if not set
+headless = true
+auto_install = true  # Download Chrome for Testing if not found
+
+# SMTP Configuration
+# Note: SMTP is configured via the Settings UI in the Tauri application
+# and stored in the database. This config section is no longer used.
+# [smtp]
+# # Email configuration
+# host = "smtp.gmail.com"
+# port = 587
+# user = "your-email@gmail.com"
+# password = "your-app-password"
+# from = "netninja@example.com"
+
+[scheduler]
+# Job scheduler settings
+enabled = true
+
+[quota_check]
+# Quota checking job settings
+concurrency = 2
+cron = "0 0 6 * * *"  # 6:00 AM daily
+
+[speed_test]
+# Speed test job settings
+cron = "0 0 */4 * * *"  # Every 4 hours
+
+[cleanup]
+# Old data cleanup job settings
+cron = "0 0 0 * * *"  # Midnight daily
+retention_days = 90
