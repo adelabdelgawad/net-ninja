@@ -1,0 +1,408 @@
+@import "tailwindcss";
+
+/* Self-hosted fonts - eliminates network latency */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/inter-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/inter-latin-500-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/inter-latin-600-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/inter-latin-700-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin-500-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin-600-normal.woff2') format('woff2');
+}
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Radius */
+  --radius-xl: 1rem;
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-sm: 0.25rem;
+
+  /* Default to dark theme (GNOME/Adwaita inspired) */
+  --color-background: #0B0B0F;
+  --color-foreground: #E6E6E6;
+  --color-card: #121216;
+  --color-card-foreground: #E6E6E6;
+  --color-popover: #121216;
+  --color-popover-foreground: #E6E6E6;
+  --color-primary: #3584e4;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #1A1A1F;
+  --color-secondary-foreground: #E6E6E6;
+  --color-muted: #1A1A1F;
+  --color-muted-foreground: #868F97;
+  --color-accent: #1A1A1F;
+  --color-accent-foreground: #E6E6E6;
+  --color-destructive: #c72e0f;
+  --color-destructive-foreground: #ffffff;
+  --color-success: #26a269;
+  --color-success-foreground: #ffffff;
+  --color-warning: #e5a50a;
+  --color-warning-foreground: #0B0B0F;
+  --color-error: #c72e0f;
+  --color-error-foreground: #ffffff;
+  --color-border: #232323;
+  --color-input: #1A1A1F;
+  --color-ring: #3584e4;
+  --color-sidebar: #1a1a1a;
+  --color-sidebar-background: #1a1a1a;
+  --color-sidebar-foreground: #999999;
+  --color-sidebar-primary: #3584e4;
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: #3584e4;
+  --color-sidebar-accent-foreground: #ffffff;
+  --color-sidebar-border: #2a2a2a;
+  --color-sidebar-ring: #3584e4;
+}
+
+/* ============================================
+   DARK THEME - GNOME/Adwaita (Default)
+   ============================================ */
+:root,
+.dark {
+  --background: #0B0B0F;
+  --foreground: #E6E6E6;
+  --card: #121216;
+  --card-foreground: #E6E6E6;
+  --popover: #121216;
+  --popover-foreground: #E6E6E6;
+  --primary: #3584e4;
+  --primary-foreground: #ffffff;
+  --secondary: #1A1A1F;
+  --secondary-foreground: #E6E6E6;
+  --muted: #1A1A1F;
+  --muted-foreground: #868F97;
+  --accent: #1A1A1F;
+  --accent-foreground: #E6E6E6;
+  --destructive: #c72e0f;
+  --destructive-foreground: #ffffff;
+  --success: #26a269;
+  --success-foreground: #ffffff;
+  --warning: #e5a50a;
+  --warning-foreground: #0B0B0F;
+  --error: #c72e0f;
+  --error-foreground: #ffffff;
+  --border: #232323;
+  --input: #1A1A1F;
+  --ring: #3584e4;
+  --sidebar: #1a1a1a;
+  --sidebar-background: #1a1a1a;
+  --sidebar-foreground: #999999;
+  --sidebar-primary: #3584e4;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #3584e4;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #2a2a2a;
+  --sidebar-ring: #3584e4;
+
+  color-scheme: dark;
+}
+
+/* ============================================
+   LIGHT THEME - Oscura Light
+   ============================================ */
+.light {
+  --background: #FAFAFA;
+  --foreground: #0F0F0F;
+  --card: #FFFFFF;
+  --card-foreground: #0F0F0F;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F0F0F;
+  --primary: #A3A33D;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F4F4F5;
+  --secondary-foreground: #0F0F0F;
+  --muted: #F4F4F5;
+  --muted-foreground: #71717A;
+  --accent: #F4F4F5;
+  --accent-foreground: #0F0F0F;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --success: #16A34A;
+  --success-foreground: #FFFFFF;
+  --warning: #D97706;
+  --warning-foreground: #FFFFFF;
+  --error: #DC2626;
+  --error-foreground: #FFFFFF;
+  --border: #E4E4E7;
+  --input: #E4E4E7;
+  --ring: #A3A33D;
+  --sidebar: #F9F9F9;
+  --sidebar-background: #F9F9F9;
+  --sidebar-foreground: #71717A;
+  --sidebar-primary: #A3A33D;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F4F4F5;
+  --sidebar-accent-foreground: #0F0F0F;
+  --sidebar-border: #E4E4E7;
+  --sidebar-ring: #A3A33D;
+
+  color-scheme: light;
+}
+
+/* Apply CSS variables to Tailwind classes */
+.dark,
+.light {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Override Tailwind theme colors with CSS variables */
+.bg-background { background-color: var(--background) !important; }
+.bg-foreground { background-color: var(--foreground) !important; }
+.bg-card { background-color: var(--card) !important; }
+.bg-popover { background-color: var(--popover) !important; }
+.bg-primary { background-color: var(--primary) !important; }
+.bg-secondary { background-color: var(--secondary) !important; }
+.bg-muted { background-color: var(--muted) !important; }
+.bg-accent { background-color: var(--accent) !important; }
+.bg-destructive { background-color: var(--destructive) !important; }
+.bg-success { background-color: var(--success) !important; }
+.bg-warning { background-color: var(--warning) !important; }
+.bg-sidebar { background-color: var(--sidebar) !important; }
+
+.text-foreground { color: var(--foreground) !important; }
+.text-card-foreground { color: var(--card-foreground) !important; }
+.text-popover-foreground { color: var(--popover-foreground) !important; }
+.text-primary { color: var(--primary) !important; }
+.text-primary-foreground { color: var(--primary-foreground) !important; }
+.text-secondary-foreground { color: var(--secondary-foreground) !important; }
+.text-muted-foreground { color: var(--muted-foreground) !important; }
+.text-accent-foreground { color: var(--accent-foreground) !important; }
+.text-destructive { color: var(--destructive) !important; }
+.text-destructive-foreground { color: var(--destructive-foreground) !important; }
+.text-sidebar-foreground { color: var(--sidebar-foreground) !important; }
+.text-sidebar-accent-foreground { color: var(--sidebar-accent-foreground) !important; }
+
+.border-border { border-color: var(--border) !important; }
+.border-input { border-color: var(--input) !important; }
+.border-primary { border-color: var(--primary) !important; }
+.border-sidebar-border { border-color: var(--sidebar-border) !important; }
+
+.ring-ring { --tw-ring-color: var(--ring) !important; }
+
+/* Opacity variants */
+.bg-primary\/5 { background-color: color-mix(in srgb, var(--primary) 5%, transparent) !important; }
+.bg-primary\/10 { background-color: color-mix(in srgb, var(--primary) 10%, transparent) !important; }
+.bg-accent\/30 { background-color: color-mix(in srgb, var(--accent) 30%, transparent) !important; }
+.bg-accent\/50 { background-color: color-mix(in srgb, var(--accent) 50%, transparent) !important; }
+.bg-muted\/30 { background-color: color-mix(in srgb, var(--muted) 30%, transparent) !important; }
+.bg-muted\/50 { background-color: color-mix(in srgb, var(--muted) 50%, transparent) !important; }
+
+.text-sidebar-foreground\/50 { color: color-mix(in srgb, var(--sidebar-foreground) 50%, transparent) !important; }
+
+.border-primary\/30 { border-color: color-mix(in srgb, var(--primary) 30%, transparent) !important; }
+.border-primary\/50 { border-color: color-mix(in srgb, var(--primary) 50%, transparent) !important; }
+
+.hover\:bg-accent:hover { background-color: var(--accent) !important; }
+.hover\:bg-accent\/50:hover { background-color: color-mix(in srgb, var(--accent) 50%, transparent) !important; }
+.hover\:text-accent-foreground:hover { color: var(--accent-foreground) !important; }
+.hover\:text-foreground:hover { color: var(--foreground) !important; }
+.hover\:border-primary\/50:hover { border-color: color-mix(in srgb, var(--primary) 50%, transparent) !important; }
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Custom scrollbar - subtle style */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--muted-foreground);
+  opacity: 0.3;
+  border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: rgba(134, 143, 151, 0.3);
+}
+
+.light ::-webkit-scrollbar-thumb {
+  background-color: rgba(113, 113, 122, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  opacity: 0.5;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(134, 143, 151, 0.5);
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(113, 113, 122, 0.5);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 8px currentColor;
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 4px currentColor;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Animation utilities */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes zoom-in-95 {
+  from { transform: scale(0.95); }
+  to { transform: scale(1); }
+}
+
+@keyframes zoom-out-95 {
+  from { transform: scale(1); }
+  to { transform: scale(0.95); }
+}
+
+@keyframes slide-in-from-top-48 {
+  from { transform: translateY(-48%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes slide-out-to-top-48 {
+  from { transform: translateY(0); }
+  to { transform: translateY(-48%); }
+}
+
+.animate-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.fade-in-0 {
+  animation: fade-in 0.2s ease-out;
+}
+
+.fade-in-80 {
+  animation: fade-in 0.2s ease-out;
+}
+
+.fade-out-0 {
+  animation: fade-out 0.2s ease-out;
+}
+
+.zoom-in-95 {
+  animation: zoom-in-95 0.2s ease-out;
+}
+
+.zoom-out-95 {
+  animation: zoom-out-95 0.2s ease-out;
+}
+
+/* Monospace text */
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* ============================================
+   SIDEBAR STYLES
+   ============================================ */
+
+.sidebar-nav {
+  border-right: 1px solid var(--sidebar-border);
+}
+
+.sidebar-item {
+  position: relative;
+}
+
+/* Sidebar accent color override for active state */
+.bg-sidebar-accent {
+  background-color: var(--sidebar-accent) !important;
+}
+
+.text-sidebar-accent-foreground {
+  color: var(--sidebar-accent-foreground) !important;
+}

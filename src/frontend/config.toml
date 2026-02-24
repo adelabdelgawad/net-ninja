@@ -1,0 +1,39 @@
+# NetNinja Configuration for Standalone/Tauri Mode
+app_mode = "standalone"
+enable_http_api = false
+enable_tauri_commands = true
+enable_scheduler = true
+
+[database]
+url = "postgresql://netninja:password@localhost/netninja"
+
+[sqlite]
+path = "/tmp/netninja-settings.db"
+
+[server]
+host = "0.0.0.0"
+port = 8080
+
+[webdriver]
+url = "http://localhost:4444"
+
+[smtp]
+host = "smtp.gmail.com"
+port = 587
+user = "your-email@gmail.com"
+password = "your-app-password"
+from = "netninja@example.com"
+
+[scheduler]
+enabled = true
+
+[quota_check]
+concurrency = 2
+cron = "0 0 6 * * *"
+
+[speed_test]
+cron = "0 0 */4 * * *"
+
+[cleanup]
+cron = "0 0 0 * * *"
+retention_days = 90
