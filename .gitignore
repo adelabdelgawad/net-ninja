@@ -1,0 +1,73 @@
+# =========================
+# Rust
+# =========================
+target/
+**/*.rs.bk
+
+# =========================
+# Node.js
+# =========================
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Package manager lock files (standardized on npm)
+pnpm-lock.yaml
+bun.lock
+
+# =========================
+# Tauri
+# =========================
+src/frontend/src-tauri/gen/
+
+# =========================
+# Database
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite3-journal
+*.db-journal
+*.db-shm
+*.db-wal
+
+# =========================
+# Environment & secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# IDE & editor
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Build artifacts
+# =========================
+build/
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# Internal dev artifacts (not for public repo)
+# =========================
+CLAUDE.md
+.claude/
+.specify/
+docs/plans/
+.auto-claude/
