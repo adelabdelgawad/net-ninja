@@ -2,6 +2,8 @@
 
 A network monitoring desktop application built with **Tauri 2** (Rust backend + SolidJS frontend). NetNinja automates quota checking and speed testing across multiple internet lines, scrapes ISP portal data via headless Chrome, stores everything in SQLite, and provides a native desktop UI for configuration and monitoring.
 
+Currently supports Egyptian Internet Service Providers **WE** and **Orange**, authenticating via login credentials to scrape usage data directly from their portals.
+
 ## Features
 
 - **Quota Monitoring** -- Automated ISP portal scraping to track data usage per line
@@ -12,6 +14,16 @@ A network monitoring desktop application built with **Tauri 2** (Rust backend + 
 - **Line-Level Logging** -- Every operation is logged with a process ID and associated line for traceability
 - **Desktop-Grade UI** -- Dark-themed native app with sidebar navigation, data tables, charts, and modal workflows
 - **Fallback Mode** -- App remains functional for configuration even when the database is unavailable
+
+## Screenshots
+
+| Dashboard | Task Creation Wizard |
+|---|---|
+| ![Dashboard](docs/screenshots/Dashboard.png) | ![Task Creation Wizard](docs/screenshots/TaskCreationWizard.png) |
+
+| Quota Check Result | Speed Test Result |
+|---|---|
+| ![Quota Check Result](docs/screenshots/QuotaCheckresult.png) | ![Speed Test Result](docs/screenshots/SpeedtestResult.png) |
 
 ## Technology Stack
 
