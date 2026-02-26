@@ -198,6 +198,10 @@ pub fn ensure_shared_directories() -> std::io::Result<()> {
     #[cfg(windows)]
     {
         std::fs::create_dir_all(get_service_log_path())?;
+        std::fs::create_dir_all(get_service_log_path().join("services"))?;
+        std::fs::create_dir_all(get_service_log_path().join("quota"))?;
+        std::fs::create_dir_all(get_service_log_path().join("speedtest"))?;
+        std::fs::create_dir_all(get_service_log_path().join("screenshots"))?;
         std::fs::create_dir_all(get_service_chrome_profiles_path())?;
         grant_users_write_access(&base_path);
     }

@@ -474,14 +474,14 @@ impl TaskService {
             }
         }
 
-        // Cleanup old service log files (older than 30 days) after every task execution.
+        // Cleanup old log files after every task execution (7-day age limit, 500 MB cap).
         // This prevents unbounded disk usage in %ProgramData%\NetNinja\logs\.
         // Errors are logged but never propagated — cleanup must not affect task results.
         #[cfg(all(windows, feature = "service"))]
-        match crate::service::logging::cleanup_old_logs(30) {
+        match crate::service::logging::cleanup_old_logs(7) {
             Ok(count) if count > 0 => {
                 tracing::info!(
-                    "[TaskService::execute] Service log file cleanup: deleted {} files older than 30 days",
+                    "[TaskService::execute] Log cleanup: removed {} entries (7-day limit, 500 MB cap)",
                     count
                 );
             }
@@ -1167,7 +1167,7 @@ async fn run_quota_check_core(
     .ok();
 
     // Run browser operations directly (chaser-oxide is async)
-    let scraping_result = scrape_quota_data_async(settings, line, show_browser).await;
+    let scraping_result = scrape_quota_data_async(settings, line, show_browser, process_id).await;
 
     let completed_at = Utc::now();
     let duration_ms = (completed_at - started_at).num_milliseconds().max(0) as u64;
@@ -1397,7 +1397,7 @@ struct QuotaCheckOutcome {
 }
 
 /// Async quota scraping using chaser-oxide
-async fn scrape_quota_data_async(settings: &Settings, line: &Line, show_browser: bool) -> QuotaScrapingResult {
+async fn scrape_quota_data_async(settings: &Settings, line: &Line, show_browser: bool, process_id: Uuid) -> QuotaScrapingResult {
     let start = std::time::Instant::now();
     let browser_mode = if show_browser { "visible" } else { "headless" };
     tracing::info!(
@@ -1477,7 +1477,7 @@ async fn scrape_quota_data_async(settings: &Settings, line: &Line, show_browser:
     };
 
     let browser_id = driver.browser_id();
-    let dlog = QuotaDebugLog::new(&line.name, &browser_id.to_string());
+    let dlog = QuotaDebugLog::new(&line.name, &browser_id.to_string(), &process_id.to_string());
 
     dlog.entry("CONTEXT", &format!(
         "service_mode={} show_browser={} headless={} temp_dir={:?}",

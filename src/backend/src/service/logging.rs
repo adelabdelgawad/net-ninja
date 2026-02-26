@@ -21,10 +21,10 @@
 
 use std::fs::{self, OpenOptions};
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use chrono::Local;
+use chrono::{Local, NaiveDate};
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -68,14 +68,17 @@ pub fn get_log_file_path() -> Option<&'static PathBuf> {
 
 /// Resolve the log file path for today, respecting the 2MB size limit.
 ///
-/// Returns the path to a log file that is either under the size limit or a new
-/// file. When the base file (`service-YYYY-MM-DD.log`) exceeds [`MAX_LOG_FILE_SIZE`],
-/// suffixed files are checked in order (`-1`, `-2`, ...) until one is found that
-/// is still under the limit, or a new suffixed file is created.
+/// Returns the path to `{log_dir}/services/YYYY-MM-DD.txt`. When the base
+/// file exceeds [`MAX_LOG_FILE_SIZE`], suffixed files are checked in order
+/// (`-1`, `-2`, ...) until one is found that is still under the limit, or
+/// a new suffixed file is created.
 fn resolve_log_file_path(log_dir: &std::path::Path) -> PathBuf {
+    let services_dir = log_dir.join("services");
+    let _ = fs::create_dir_all(&services_dir);
+
     let date_str = Local::now().format("%Y-%m-%d").to_string();
-    let base_name = format!("service-{}.log", date_str);
-    let base_path = log_dir.join(&base_name);
+    let base_name = format!("{}.txt", date_str);
+    let base_path = services_dir.join(&base_name);
 
     // If the base file doesn't exist or is under the limit, use it.
     if !base_path.exists() || file_size(&base_path) < MAX_LOG_FILE_SIZE {
@@ -85,8 +88,8 @@ fn resolve_log_file_path(log_dir: &std::path::Path) -> PathBuf {
     // Base file is over the limit — find the next available suffixed file.
     let mut suffix = 1u32;
     loop {
-        let suffixed_name = format!("service-{}-{}.log", date_str, suffix);
-        let suffixed_path = log_dir.join(&suffixed_name);
+        let suffixed_name = format!("{}-{}.txt", date_str, suffix);
+        let suffixed_path = services_dir.join(&suffixed_name);
 
         if !suffixed_path.exists() || file_size(&suffixed_path) < MAX_LOG_FILE_SIZE {
             return suffixed_path;
@@ -327,59 +330,202 @@ pub fn deregister_event_source() -> Result<(), LoggingError> {
     Ok(())
 }
 
-/// Clean up old log files.
-///
-/// Removes log files older than the specified number of days to prevent
-/// unbounded disk usage.
-///
-/// # Arguments
-///
-/// * `max_age_days` - Maximum age of log files to keep (default: 30)
-///
-/// # Returns
-///
-/// Returns the number of files deleted.
-pub fn cleanup_old_logs(max_age_days: u32) -> io::Result<usize> {
-    let log_dir = paths::get_service_log_path();
-    let max_age = chrono::Duration::days(max_age_days as i64);
-    let cutoff = Local::now() - max_age;
+/// Maximum total log directory size before oldest entries are pruned (500 MB).
+const MAX_LOG_DIR_SIZE: u64 = 500 * 1024 * 1024;
 
-    let mut deleted_count = 0;
+/// Parse a `YYYY-MM-DD` date from the first 10 characters of a file or directory name.
+fn parse_date_from_name(name: &str) -> Option<NaiveDate> {
+    if name.len() < 10 {
+        return None;
+    }
+    NaiveDate::parse_from_str(&name[..10], "%Y-%m-%d").ok()
+}
 
-    if !log_dir.exists() {
+/// Recursively sum the size of all files under `path` (or the file itself).
+fn path_size(path: &Path) -> u64 {
+    if path.is_file() {
+        return fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+    }
+    let Ok(entries) = fs::read_dir(path) else {
+        return 0;
+    };
+    entries.flatten().map(|e| path_size(&e.path())).sum()
+}
+
+/// Sum the size of all content in the four log subdirectories.
+fn total_log_size(log_dir: &Path) -> u64 {
+    ["services", "quota", "speedtest", "screenshots"]
+        .iter()
+        .map(|sub| path_size(&log_dir.join(sub)))
+        .sum()
+}
+
+/// Age-based cleanup for `services/` (flat `.txt` files named `YYYY-MM-DD[...].txt`).
+fn cleanup_services_age(services_dir: &Path, cutoff: NaiveDate) -> io::Result<usize> {
+    let mut count = 0;
+    if !services_dir.exists() {
+        return Ok(0);
+    }
+    for entry in fs::read_dir(services_dir)? {
+        let path = entry?.path();
+        if !path.is_file() {
+            continue;
+        }
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        if parse_date_from_name(stem).map_or(false, |d| d < cutoff) {
+            if let Err(e) = fs::remove_file(&path) {
+                tracing::warn!("Failed to delete old service log {}: {}", path.display(), e);
+            } else {
+                tracing::debug!("Deleted old service log: {}", path.display());
+                count += 1;
+            }
+        }
+    }
+    Ok(count)
+}
+
+/// Age-based cleanup for subdirs that contain `YYYY-MM-DD/` date-folders.
+fn cleanup_date_subdirs_age(dir: &Path, cutoff: NaiveDate) -> io::Result<usize> {
+    let mut count = 0;
+    if !dir.exists() {
+        return Ok(0);
+    }
+    for entry in fs::read_dir(dir)? {
+        let path = entry?.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+        if parse_date_from_name(name).map_or(false, |d| d < cutoff) {
+            if let Err(e) = fs::remove_dir_all(&path) {
+                tracing::warn!("Failed to delete old log dir {}: {}", path.display(), e);
+            } else {
+                tracing::debug!("Deleted old log dir: {}", path.display());
+                count += 1;
+            }
+        }
+    }
+    Ok(count)
+}
+
+/// Size-cap enforcement: delete oldest date-entries across all log subdirs
+/// until the total is at or below [`MAX_LOG_DIR_SIZE`].
+fn enforce_size_cap(log_dir: &Path) -> io::Result<usize> {
+    if total_log_size(log_dir) <= MAX_LOG_DIR_SIZE {
         return Ok(0);
     }
 
-    for entry in fs::read_dir(&log_dir)? {
-        let entry = entry?;
-        let path = entry.path();
+    // Collect every deletable entry (file in services/, dir in others) with its date.
+    struct DateEntry {
+        date: NaiveDate,
+        path: PathBuf,
+    }
+    let mut entries: Vec<DateEntry> = Vec::new();
 
-        // Only process .log files
-        if !path.extension().map(|e| e == "log").unwrap_or(false) {
-            continue;
-        }
-
-        // Check file modification time
-        if let Ok(metadata) = fs::metadata(&path) {
-            if let Ok(modified) = metadata.modified() {
-                let modified_time: chrono::DateTime<Local> = modified.into();
-                if modified_time < cutoff {
-                    if let Err(e) = fs::remove_file(&path) {
-                        tracing::warn!("Failed to delete old log file {}: {}", path.display(), e);
-                    } else {
-                        tracing::debug!("Deleted old log file: {}", path.display());
-                        deleted_count += 1;
-                    }
+    // services/ contains flat files
+    let services_dir = log_dir.join("services");
+    if services_dir.exists() {
+        for entry in fs::read_dir(&services_dir)?.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
+                if let Some(date) = parse_date_from_name(&stem) {
+                    entries.push(DateEntry { date, path });
                 }
             }
         }
     }
 
-    if deleted_count > 0 {
-        tracing::info!("Cleaned up {} old log files", deleted_count);
+    // quota/, speedtest/, screenshots/ contain date-subdirs
+    for sub in &["quota", "speedtest", "screenshots"] {
+        let dir = log_dir.join(sub);
+        if !dir.exists() {
+            continue;
+        }
+        for entry in fs::read_dir(&dir)?.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("").to_string();
+                if let Some(date) = parse_date_from_name(&name) {
+                    entries.push(DateEntry { date, path });
+                }
+            }
+        }
     }
 
-    Ok(deleted_count)
+    // Delete oldest first
+    entries.sort_by_key(|e| e.date);
+
+    let mut count = 0;
+    for entry in entries {
+        if total_log_size(log_dir) <= MAX_LOG_DIR_SIZE {
+            break;
+        }
+        let removed = if entry.path.is_file() {
+            fs::remove_file(&entry.path).is_ok()
+        } else {
+            fs::remove_dir_all(&entry.path).is_ok()
+        };
+        if removed {
+            tracing::debug!("Size cap: deleted {}", entry.path.display());
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
+/// Clean up log files and directories to enforce retention limits.
+///
+/// Two policies are applied in order:
+///
+/// 1. **Age-based** — entries older than `max_age_days` are deleted:
+///    - `services/YYYY-MM-DD[...].txt` files
+///    - `quota/YYYY-MM-DD/`, `speedtest/YYYY-MM-DD/`, `screenshots/YYYY-MM-DD/` dirs
+///
+/// 2. **Size-cap** — if the total log footprint exceeds 500 MB after the age pass,
+///    the oldest remaining entries are deleted until it falls back under the cap.
+///
+/// # Returns
+///
+/// Returns the total number of files/directories deleted.
+pub fn cleanup_old_logs(max_age_days: u32) -> io::Result<usize> {
+    let log_dir = paths::get_service_log_path();
+    if !log_dir.exists() {
+        return Ok(0);
+    }
+
+    let cutoff = (Local::now() - chrono::Duration::days(max_age_days as i64))
+        .date_naive();
+
+    let mut deleted = 0;
+
+    // Pass 1 — age-based
+    deleted += cleanup_services_age(&log_dir.join("services"), cutoff)?;
+    for sub in &["quota", "speedtest", "screenshots"] {
+        deleted += cleanup_date_subdirs_age(&log_dir.join(sub), cutoff)?;
+    }
+
+    // Pass 2 — size cap
+    let pruned = enforce_size_cap(&log_dir)?;
+    if pruned > 0 {
+        tracing::info!(
+            "Log size cap: pruned {} entries to stay under {} MB",
+            pruned,
+            MAX_LOG_DIR_SIZE / 1024 / 1024
+        );
+    }
+    deleted += pruned;
+
+    if deleted > 0 {
+        tracing::info!(
+            "Log cleanup: removed {} entries ({}-day limit, {} MB cap)",
+            deleted,
+            max_age_days,
+            MAX_LOG_DIR_SIZE / 1024 / 1024
+        );
+    }
+
+    Ok(deleted)
 }
 
 /// Write a startup marker to the log file.
@@ -431,13 +577,13 @@ mod tests {
     #[test]
     fn test_log_path_construction() {
         let log_dir = paths::get_service_log_path();
-        let log_filename = format!("service-{}.log", Local::now().format("%Y-%m-%d"));
-        let log_path = log_dir.join(&log_filename);
+        let log_filename = format!("{}.txt", Local::now().format("%Y-%m-%d"));
+        let log_path = log_dir.join("services").join(&log_filename);
 
         // Verify path looks reasonable
         assert!(log_path.to_string_lossy().contains("logs"));
-        assert!(log_path.to_string_lossy().contains("service-"));
-        assert!(log_path.to_string_lossy().ends_with(".log"));
+        assert!(log_path.to_string_lossy().contains("services"));
+        assert!(log_path.to_string_lossy().ends_with(".txt"));
     }
 
     #[test]
@@ -448,11 +594,9 @@ mod tests {
 
         let result = resolve_log_file_path(&temp_dir);
         let name = result.file_name().unwrap().to_string_lossy();
+        let date_str = Local::now().format("%Y-%m-%d").to_string();
 
-        assert!(name.starts_with("service-"));
-        assert!(name.ends_with(".log"));
-        // Base name should have no suffix
-        assert!(!name.contains("-1.log"));
+        assert_eq!(name, format!("{}.txt", date_str));
 
         let _ = fs::remove_dir_all(&temp_dir);
     }
@@ -463,10 +607,12 @@ mod tests {
         let _ = fs::remove_dir_all(&temp_dir);
         fs::create_dir_all(&temp_dir).unwrap();
 
-        // Create a base file that exceeds the max size
         let date_str = Local::now().format("%Y-%m-%d").to_string();
-        let base_name = format!("service-{}.log", date_str);
-        let base_path = temp_dir.join(&base_name);
+        let services_dir = temp_dir.join("services");
+        fs::create_dir_all(&services_dir).unwrap();
+
+        // Create a base file that exceeds the max size
+        let base_path = services_dir.join(format!("{}.txt", date_str));
         let oversized = vec![0u8; (MAX_LOG_FILE_SIZE + 1) as usize];
         fs::write(&base_path, &oversized).unwrap();
 
@@ -474,14 +620,14 @@ mod tests {
         let name = result.file_name().unwrap().to_string_lossy();
 
         // Should pick the first suffixed name
-        let expected = format!("service-{}-1.log", date_str);
+        let expected = format!("{}-1.txt", date_str);
         assert_eq!(name, expected);
 
         // Now make that one oversized too
         fs::write(&result, &oversized).unwrap();
         let result2 = resolve_log_file_path(&temp_dir);
         let name2 = result2.file_name().unwrap().to_string_lossy();
-        let expected2 = format!("service-{}-2.log", date_str);
+        let expected2 = format!("{}-2.txt", date_str);
         assert_eq!(name2, expected2);
 
         let _ = fs::remove_dir_all(&temp_dir);

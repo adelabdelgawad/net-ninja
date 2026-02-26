@@ -3,7 +3,7 @@ use std::net::IpAddr;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
-use crate::clients::SpeedTestClient;
+use crate::clients::{SpeedTestClient, SpeedTestDebugLog};
 use crate::config::Settings;
 use crate::db::create_pool;
 use crate::errors::AppResult;
@@ -76,6 +76,7 @@ pub async fn run(_settings: &Settings) -> AppResult<()> {
 
 async fn run_speed_test_for_line(pool: &SqlitePool, line: &Line) -> AppResult<()> {
     let process_id = Uuid::new_v4();
+    let dlog = SpeedTestDebugLog::new(&line.name, &process_id.to_string());
 
     LogService::info_for_line(
         pool,
@@ -94,6 +95,7 @@ async fn run_speed_test_for_line(pool: &SqlitePool, line: &Line) -> AppResult<()
         Some(ip_str) => {
             match ip_str.parse::<IpAddr>() {
                 Ok(ip) => {
+                    dlog.entry("IP_BIND", &format!("Binding speed test to IP: {}", ip));
                     LogService::info_for_line(
                         pool,
                         process_id,
@@ -105,6 +107,7 @@ async fn run_speed_test_for_line(pool: &SqlitePool, line: &Line) -> AppResult<()
                     SpeedTestClient::with_source_address(ip)?
                 }
                 Err(e) => {
+                    dlog.entry("IP_BIND", &format!("Invalid IP address '{}': {}, using default", ip_str, e));
                     LogService::warning_for_line(
                         pool,
                         process_id,
@@ -118,6 +121,7 @@ async fn run_speed_test_for_line(pool: &SqlitePool, line: &Line) -> AppResult<()
             }
         }
         None => {
+            dlog.entry("IP_BIND", "No IP address configured, using default interface");
             LogService::info_for_line(
                 pool,
                 process_id,
@@ -130,9 +134,24 @@ async fn run_speed_test_for_line(pool: &SqlitePool, line: &Line) -> AppResult<()
         }
     };
 
+    dlog.entry("SPEEDTEST_START", "Running speed test");
+
     // Run the speed test
     match client.run().await {
         Ok(result) => {
+            dlog.entry(
+                "SPEEDTEST_RESULT",
+                &format!(
+                    "ping={:.2}ms download={:.2}Mbps upload={:.2}Mbps server='{}' location='{}' public_ip='{}'",
+                    result.ping_ms,
+                    result.download_mbps,
+                    result.upload_mbps,
+                    result.server_name,
+                    result.server_location,
+                    result.public_ip,
+                ),
+            );
+
             LogService::info_for_line(
                 pool,
                 process_id,
@@ -161,9 +180,12 @@ async fn run_speed_test_for_line(pool: &SqlitePool, line: &Line) -> AppResult<()
 
             SpeedTestService::create(pool, request).await?;
 
+            dlog.end("success");
             Ok(())
         }
         Err(e) => {
+            dlog.entry("SPEEDTEST_ERROR", &format!("{:?}", e));
+
             LogService::error_for_line(
                 pool,
                 process_id,
@@ -189,6 +211,7 @@ async fn run_speed_test_for_line(pool: &SqlitePool, line: &Line) -> AppResult<()
 
             SpeedTestService::create(pool, request).await?;
 
+            dlog.end("failed");
             Err(e)
         }
     }

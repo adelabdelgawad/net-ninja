@@ -192,6 +192,8 @@ fn install_service_with_path(service_binary_path: Option<PathBuf>) -> Result<(),
                 tracing::warn!("Binary path update requires service reinstall. Please uninstall and reinstall.");
             }
 
+            configure_service_recovery(&service)?;
+            tracing::info!("Recovery options re-applied for existing service");
             tracing::info!("Service {} is already installed", SERVICE_NAME);
             Ok(())
         }
@@ -540,7 +542,7 @@ fn set_directory_acls(path: &std::path::Path) -> Result<(), InstallError> {
 /// Sets the service to restart automatically on failure:
 /// - First failure: Restart after 60 seconds
 /// - Second failure: Restart after 60 seconds
-/// - Subsequent failures: Take no action (prevents restart loop)
+/// - Subsequent failures: Restart after 5 minutes
 fn configure_service_recovery(
     service: &windows_service::service::Service,
 ) -> Result<(), InstallError> {
@@ -560,10 +562,10 @@ fn configure_service_recovery(
             action_type: ServiceActionType::Restart,
             delay: Duration::from_secs(60),
         },
-        // Third and subsequent: No action
+        // Third and subsequent: Restart after 5 minutes
         ServiceAction {
-            action_type: ServiceActionType::None,
-            delay: Duration::ZERO,
+            action_type: ServiceActionType::Restart,
+            delay: Duration::from_secs(300),
         },
     ];
 

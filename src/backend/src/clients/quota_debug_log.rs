@@ -20,13 +20,10 @@ use chrono::Local;
 use super::WebDriverClient;
 use crate::errors::AppResult;
 
-/// Maximum debug log file size (5 MB) before rolling to a new suffix.
-const MAX_DEBUG_LOG_SIZE: u64 = 5 * 1024 * 1024;
-
-/// Get the directory for quota debug logs.
+/// Get the base logs directory for NetNinja.
 ///
-/// - Service mode (Windows): `%ProgramData%\NetNinja\logs`
-/// - Desktop / other:        `<app_data>/netninja/logs`
+/// - Windows: `%ProgramData%\NetNinja\logs`
+/// - Other:   `<app_data>/netninja/logs`
 fn debug_log_dir() -> PathBuf {
     #[cfg(windows)]
     {
@@ -40,52 +37,39 @@ fn debug_log_dir() -> PathBuf {
     }
 }
 
-/// Resolve the debug log file path, rolling when the file exceeds the size limit.
-fn resolve_debug_log_path() -> PathBuf {
-    let dir = debug_log_dir();
-    let _ = fs::create_dir_all(&dir);
-    let date = Local::now().format("%Y-%m-%d").to_string();
-    let base = dir.join(format!("quota-debug-{}.log", date));
-
-    if !base.exists() || file_size(&base) < MAX_DEBUG_LOG_SIZE {
-        return base;
-    }
-
-    let mut suffix = 1u32;
-    loop {
-        let p = dir.join(format!("quota-debug-{}-{}.log", date, suffix));
-        if !p.exists() || file_size(&p) < MAX_DEBUG_LOG_SIZE {
-            return p;
-        }
-        suffix += 1;
-    }
-}
-
-fn file_size(p: &std::path::Path) -> u64 {
-    fs::metadata(p).map(|m| m.len()).unwrap_or(0)
-}
-
 /// A per-scrape debug logger that accumulates entries in memory and flushes
 /// them to the debug log file when the session ends (or on explicit flush).
 pub struct QuotaDebugLog {
     line_name: String,
     browser_id: String,
+    log_path: PathBuf,
+    screenshot_dir: PathBuf,
     start: Instant,
     entries: Mutex<Vec<String>>,
 }
 
 impl QuotaDebugLog {
     /// Start a new debug log session for a quota scrape.
-    pub fn new(line_name: &str, browser_id: &str) -> Self {
+    pub fn new(line_name: &str, browser_id: &str, process_id: &str) -> Self {
+        let base = debug_log_dir();
+        let date = Local::now().format("%Y-%m-%d").to_string();
+
+        let log_path = base.join("quota").join(&date).join(format!("{}.txt", process_id));
+        let _ = fs::create_dir_all(log_path.parent().unwrap());
+
+        let screenshot_dir = base.join("screenshots").join(&date).join(process_id);
+
         let log = Self {
             line_name: line_name.to_string(),
             browser_id: browser_id.to_string(),
+            log_path,
+            screenshot_dir,
             start: Instant::now(),
             entries: Mutex::new(Vec::with_capacity(64)),
         };
         log.entry("SESSION_START", &format!(
-            "Quota scrape session started | line='{}' browser='{}'",
-            line_name, browser_id
+            "Quota scrape session started | line='{}' browser='{}' process_id='{}'",
+            line_name, browser_id, process_id
         ));
         log
     }
@@ -244,13 +228,12 @@ impl QuotaDebugLog {
 
     /// Save a screenshot and log its path.
     pub async fn screenshot(&self, driver: &WebDriverClient, label: &str) {
-        let dir = debug_log_dir().join("screenshots");
-        let _ = fs::create_dir_all(&dir);
+        let dir = &self.screenshot_dir;
+        let _ = fs::create_dir_all(dir);
 
         let filename = format!(
-            "{}-{}-{}.png",
-            self.line_name.replace(' ', "_"),
-            label,
+            "{}-{}.png",
+            label.replace(' ', "_"),
             Local::now().format("%H%M%S")
         );
         let path = dir.join(&filename);
@@ -283,11 +266,11 @@ impl QuotaDebugLog {
             return;
         }
 
-        let path = resolve_debug_log_path();
+        let path = &self.log_path;
         let file = OpenOptions::new()
             .create(true)
             .append(true)
-            .open(&path);
+            .open(path);
 
         match file {
             Ok(mut f) => {
