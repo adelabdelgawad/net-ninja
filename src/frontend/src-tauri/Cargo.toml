@@ -1,6 +1,6 @@
 [package]
 name = "netninja-desktop"
-version = "0.1.1"
+version = "0.1.2"
 description = "NetNinja desktop application -- Tauri shell"
 authors = ["NetNinja Team"]
 license = "MIT"

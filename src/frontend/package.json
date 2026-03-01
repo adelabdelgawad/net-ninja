@@ -1,7 +1,7 @@
 {
   "name": "netninja-frontend",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "NetNinja desktop frontend -- SolidJS + Tauri",
   "license": "MIT",
   "author": "NetNinja Team",
