@@ -6,6 +6,7 @@ import {
   EmailRecipientList,
   EmailRecipientFormDialog,
   EmailRecipientDeleteDialog,
+  ToggleRecipientActiveDialog,
 } from './email';
 
 interface EmailRecipientsContentProps {
@@ -20,6 +21,9 @@ export const EmailRecipientsContent: Component<EmailRecipientsContentProps> = (p
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = createSignal(false);
   const [selectedEmail, setSelectedEmail] = createSignal<Email | null>(null);
   const [isLoading, setIsLoading] = createSignal(false);
+  const [isToggleActiveOpen, setIsToggleActiveOpen] = createSignal(false);
+  const [toggleActiveEmail, setToggleActiveEmail] = createSignal<Email | null>(null);
+  const [isToggling, setIsToggling] = createSignal(false);
 
   // Form state
   const [formData, setFormData] = createSignal<Partial<EmailCreate>>({
@@ -126,13 +130,25 @@ export const EmailRecipientsContent: Component<EmailRecipientsContentProps> = (p
     }
   };
 
-  const handleToggleActive = async (email: Email) => {
+  const openToggleActiveDialog = (email: Email) => {
+    setToggleActiveEmail(email);
+    setIsToggleActiveOpen(true);
+  };
+
+  const handleToggleActive = async () => {
+    const email = toggleActiveEmail();
+    if (!email) return;
+    setIsToggling(true);
     try {
       await emailsApi.update(email.id, { isActive: !email.isActive });
+      setIsToggleActiveOpen(false);
+      setToggleActiveEmail(null);
       refetch();
       showToast({ title: `Recipient ${!email.isActive ? 'activated' : 'deactivated'}`, variant: 'success', duration: 3000 });
     } catch (e) {
       showToast({ title: 'Failed to toggle recipient status', description: e instanceof Error ? e.message : 'An unexpected error occurred', variant: 'error', duration: 5000 });
+    } finally {
+      setIsToggling(false);
     }
   };
 
@@ -171,7 +187,7 @@ export const EmailRecipientsContent: Component<EmailRecipientsContentProps> = (p
         emails={emails}
         onAddRecipient={openAddDialog}
         onEdit={openEditDialog}
-        onToggleActive={handleToggleActive}
+        onToggleActive={openToggleActiveDialog}
         onDelete={openDeleteDialog}
       />
       </div>
@@ -201,6 +217,13 @@ export const EmailRecipientsContent: Component<EmailRecipientsContentProps> = (p
         email={selectedEmail}
         onDelete={handleDelete}
         isLoading={isLoading}
+      />
+      <ToggleRecipientActiveDialog
+        open={isToggleActiveOpen}
+        email={toggleActiveEmail}
+        toggling={isToggling}
+        onOpenChange={setIsToggleActiveOpen}
+        onConfirm={handleToggleActive}
       />
     </div>
   );

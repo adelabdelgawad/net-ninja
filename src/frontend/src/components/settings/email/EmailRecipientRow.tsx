@@ -1,6 +1,5 @@
 import { type Component } from 'solid-js';
 import type { Email } from '~/types';
-import { Switch } from '@kobalte/core';
 
 interface EmailRecipientRowProps {
   email: Email;
@@ -40,13 +39,18 @@ export const EmailRecipientRow: Component<EmailRecipientRowProps> = (props) => {
         <span class="text-[11px] text-[#999999]">
           {props.email.isActive ? 'Active' : 'Inactive'}
         </span>
-        <Switch.Root
-          checked={props.email.isActive}
-          onChange={props.onToggleActive}
-          class="relative inline-flex h-[18px] w-[32px] items-center rounded-full bg-[#3c3c3c] transition-colors data-[checked]:bg-[#3584e4] cursor-pointer"
+        <div
+          onClick={props.onToggleActive}
+          class={`relative inline-flex h-[18px] w-[32px] items-center rounded-full transition-colors cursor-pointer ${
+            props.email.isActive ? 'bg-[#3584e4]' : 'bg-[#3c3c3c]'
+          }`}
         >
-          <Switch.Thumb class="h-[14px] w-[14px] transform rounded-full bg-white transition-transform data-[checked]:translate-x-[16px] data-[unchecked]:translate-x-[2px]" />
-        </Switch.Root>
+          <span
+            class={`h-[14px] w-[14px] rounded-full bg-white transition-transform ${
+              props.email.isActive ? 'translate-x-[16px]' : 'translate-x-[2px]'
+            }`}
+          />
+        </div>
       </div>
 
       {/* Actions */}

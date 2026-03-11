@@ -19,6 +19,7 @@ import { EditTaskModal } from './tasks/_components/modals/EditTaskModal';
 import { ExecutionHistoryModal } from './tasks/_components/modals/ExecutionHistoryModal';
 import { RunNowDialog } from './tasks/_components/modals/RunNowDialog';
 import { StopTaskDialog } from './tasks/_components/modals/StopTaskDialog';
+import { ToggleTaskActiveDialog } from './tasks/_components/modals/ToggleTaskActiveDialog';
 import { Play, Square, Edit2, Trash2, History } from 'lucide-solid';
 import type { RuntimeNotificationConfig } from '~/types';
 
@@ -43,11 +44,18 @@ export const Tasks: Component = () => {
   const [historyTask, setHistoryTask] = createSignal<Task | null>(null);
   const [runNowTask, setRunNowTask] = createSignal<Task | null>(null);
   const [stopTask, setStopTask] = createSignal<Task | null>(null);
+  const [isToggleActiveOpen, setIsToggleActiveOpen] = createSignal(false);
+  const [toggleActiveTask, setToggleActiveTask] = createSignal<Task | null>(null);
   const [, setExecutingTaskIds] = createSignal<Set<number>>(new Set());
 
   const handleCreateTask = async (data: CreateTaskRequest): Promise<number> => {
     const task = await createMutation.mutateAsync(data);
     return task.id;
+  };
+
+  const openToggleActiveDialog = (task: Task) => {
+    setToggleActiveTask(task);
+    setIsToggleActiveOpen(true);
   };
 
   const handleToggleActive = async (task: Task, isActive: boolean) => {
@@ -56,6 +64,7 @@ export const Tasks: Component = () => {
       showToast({ title: `Task ${isActive ? 'activated' : 'deactivated'}`, variant: 'success', duration: 3000 });
     } catch (error) {
       showToast({ title: 'Failed to toggle task status', description: error instanceof Error ? error.message : 'An unexpected error occurred', variant: 'error', duration: 5000 });
+      throw error;
     }
   };
 
@@ -343,11 +352,24 @@ export const Tasks: Component = () => {
       cellRenderer: (row) => {
         const task = row();
         return (
-          <div class="flex items-center justify-center">
-            <ToggleSwitch
-              checked={task.isActive}
-              onChange={(checked) => handleToggleActive(task, checked)}
-            />
+          <div
+            class="flex items-center justify-center"
+            onClick={(e) => {
+              e.stopPropagation();
+              openToggleActiveDialog(task);
+            }}
+          >
+            <div
+              class={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                task.isActive ? 'bg-[#3584e4]' : 'bg-[#3c3c3c]'
+              }`}
+            >
+              <span
+                class={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  task.isActive ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </div>
           </div>
         );
       },
@@ -586,6 +608,16 @@ export const Tasks: Component = () => {
           if (!open) setStopTask(null);
         }}
         onConfirm={handleConfirmStop}
+      />
+
+      <ToggleTaskActiveDialog
+        open={isToggleActiveOpen()}
+        task={toggleActiveTask()}
+        onOpenChange={(open) => {
+          setIsToggleActiveOpen(open);
+          if (!open) setToggleActiveTask(null);
+        }}
+        onConfirm={handleToggleActive}
       />
     </div>
   );

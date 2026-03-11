@@ -10,3 +10,4 @@ export { EmailRecipientRow } from './EmailRecipientRow';
 export { EmailRecipientEmpty } from './EmailRecipientEmpty';
 export { EmailRecipientFormDialog } from './EmailRecipientFormDialog';
 export { EmailRecipientDeleteDialog } from './EmailRecipientDeleteDialog';
+export { ToggleRecipientActiveDialog } from './ToggleRecipientActiveDialog';

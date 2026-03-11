@@ -1291,7 +1291,7 @@ const ORANGE_LOGIN_BUTTON: &str = "#GSM_Portal_Login_btnLogin";
 
 // Orange data selectors
 const ORANGE_TOTAL_QUOTA_SELECTOR: &str = ".total-consumption";
-const ORANGE_USED_QUOTA_SELECTOR: &str = "p.m-0:nth-child(1) > span:nth-child(2)";
+const ORANGE_REMAINING_QUOTA_SELECTOR: &str = "p.m-0:nth-child(1) > span:nth-child(2)";
 const ORANGE_RENEWAL_DATE_SELECTOR: &str = "p.m-0:nth-child(2) > span:nth-child(2)";
 
 #[derive(Debug, Default, Clone)]
@@ -2038,8 +2038,8 @@ async fn scrape_orange_quota_data(driver: &WebDriverClient, line: &Line, dlog: &
             result.steps.overview = true;
             result.steps.renewal = true; // Orange gets renewal from internet page
             dlog.step_ok("ORANGE_INTERNET", &format!(
-                "total={:?} used={:?} renewal_date={:?}",
-                result.data.total_quota, result.data.used_quota, result.data.renewal_date
+                "total={:?} remaining={:?} used={:?} renewal_date={:?}",
+                result.data.total_quota, result.data.remaining_quota, result.data.used_quota, result.data.renewal_date
             ));
             tracing::info!("[Orange] Internet page scraping completed successfully for line '{}'", line.name);
         }
@@ -2147,16 +2147,16 @@ async fn scrape_orange_internet_page(driver: &WebDriverClient, data: &mut QuotaD
         }
     }
 
-    // Extract used quota
-    match driver.get_text(ORANGE_USED_QUOTA_SELECTOR).await {
+    // Extract remaining quota (the Orange portal shows "السعه المتبقية" = remaining capacity)
+    match driver.get_text(ORANGE_REMAINING_QUOTA_SELECTOR).await {
         Ok(text) => {
-            dlog.entry("EXTRACT", &format!("[Orange] USED_QUOTA raw='{}' parsed={:?}", text, parse_orange_quota(&text)));
-            data.used_quota = parse_orange_quota(&text);
+            dlog.entry("EXTRACT", &format!("[Orange] REMAINING_QUOTA raw='{}' parsed={:?}", text, parse_orange_quota(&text)));
+            data.remaining_quota = parse_orange_quota(&text);
         }
         Err(e) => {
-            extraction_errors.push("used_quota");
-            dlog.entry("EXTRACT", &format!("[Orange] USED_QUOTA FAILED: {}", e));
-            tracing::warn!("[Orange] Failed to extract used quota: {}", e);
+            extraction_errors.push("remaining_quota");
+            dlog.entry("EXTRACT", &format!("[Orange] REMAINING_QUOTA FAILED: {}", e));
+            tracing::warn!("[Orange] Failed to extract remaining quota: {}", e);
         }
     }
 
@@ -2173,19 +2173,19 @@ async fn scrape_orange_internet_page(driver: &WebDriverClient, data: &mut QuotaD
         }
     }
 
-    // Calculate remaining quota if we have total and used
-    if let (Some(total), Some(used)) = (data.total_quota, data.used_quota) {
-        data.remaining_quota = Some((total - used).max(0.0));
+    // Calculate used quota if we have total and remaining
+    if let (Some(total), Some(remaining)) = (data.total_quota, data.remaining_quota) {
+        data.used_quota = Some((total - remaining).max(0.0));
         dlog.entry("CALC", &format!(
-            "[Orange] Total={:.2} Used={:.2} Remaining={:.2}",
-            total, used, data.remaining_quota.unwrap()
+            "[Orange] Total={:.2} Remaining={:.2} Used={:.2}",
+            total, remaining, data.used_quota.unwrap()
         ));
     }
 
     dlog.screenshot(driver, "orange_internet_extracted").await;
 
     // Success if we got at least one field
-    if data.total_quota.is_some() || data.used_quota.is_some() || data.renewal_date.is_some() {
+    if data.total_quota.is_some() || data.remaining_quota.is_some() || data.renewal_date.is_some() {
         Ok(())
     } else {
         let err_msg = format!("[Orange] Failed to extract any data: {}", extraction_errors.join(", "));

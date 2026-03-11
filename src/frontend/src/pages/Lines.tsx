@@ -13,8 +13,8 @@ import {
   ViewLineDialog,
   AddLineDialog,
   DeleteLineDialog,
+  ToggleActiveDialog,
 } from './lines/_components/modals';
-import { Switch } from '@kobalte/core';
 import { Edit2 } from 'lucide-solid';
 
 export const ISP_OPTIONS = ['WE', 'Vodafone', 'Orange', 'Etisalat'] as const;
@@ -49,6 +49,9 @@ export const Lines: Component = () => {
   const [viewingLine, setViewingLine] = createSignal<Line | null>(null);
   const [deletingLine, setDeletingLine] = createSignal<Line | null>(null);
   const [saving, setSaving] = createSignal(false);
+  const [isToggleActiveOpen, setIsToggleActiveOpen] = createSignal(false);
+  const [togglingLine, setTogglingLine] = createSignal<Line | null>(null);
+  const [toggling, setToggling] = createSignal(false);
 
   const openEditForm = (line: Line) => {
     setFormData({
@@ -117,15 +120,27 @@ export const Lines: Component = () => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleToggleActive = async (line: Line) => {
+  const openToggleActiveDialog = (line: Line) => {
+    setTogglingLine(line);
+    setIsToggleActiveOpen(true);
+  };
+
+  const handleToggleActive = async () => {
+    const line = togglingLine();
+    if (!line) return;
+    setToggling(true);
     try {
       await toggleActiveMutation.mutateAsync({
         id: line.id,
         isActive: !line.isActive,
       });
+      setIsToggleActiveOpen(false);
+      setTogglingLine(null);
       showToast({ title: `Line ${!line.isActive ? 'activated' : 'deactivated'}`, variant: 'success', duration: 3000 });
     } catch (e) {
       showToast({ title: 'Failed to toggle line status', description: e instanceof Error ? e.message : 'An unexpected error occurred', variant: 'error', duration: 5000 });
+    } finally {
+      setToggling(false);
     }
   };
 
@@ -199,14 +214,24 @@ export const Lines: Component = () => {
       width: '8%',
       align: 'center',
       cellRenderer: (row) => (
-        <div class="flex items-center justify-center">
-          <Switch.Root
-            checked={row().isActive ?? true}
-            onChange={() => handleToggleActive(row())}
-            class="relative inline-flex h-4 w-7 items-center rounded-full bg-[#3c3c3c] transition-colors focus:outline-none focus:ring-2 focus:ring-[#3584e4] focus:ring-offset-2 focus:ring-offset-[#1e1e1e] data-[checked]:bg-[#3584e4]"
+        <div
+          class="flex items-center justify-center"
+          onClick={(e) => {
+            e.stopPropagation();
+            openToggleActiveDialog(row());
+          }}
+        >
+          <div
+            class={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors cursor-pointer ${
+              row().isActive ? 'bg-[#3584e4]' : 'bg-[#3c3c3c]'
+            }`}
           >
-            <Switch.Thumb class="h-3 w-3 transform rounded-full bg-white transition-transform data-[checked]:translate-x-3.5 data-[unchecked]:translate-x-0.5" />
-          </Switch.Root>
+            <span
+              class={`h-3 w-3 rounded-full bg-white transition-transform ${
+                row().isActive ? 'translate-x-3.5' : 'translate-x-0.5'
+              }`}
+            />
+          </div>
         </div>
       ),
     },
@@ -330,6 +355,14 @@ export const Lines: Component = () => {
         line={deletingLine()}
         onOpenChange={setIsDeleteOpen}
         onDelete={handleDelete}
+      />
+
+      <ToggleActiveDialog
+        open={isToggleActiveOpen()}
+        line={togglingLine()}
+        toggling={toggling()}
+        onOpenChange={setIsToggleActiveOpen}
+        onConfirm={handleToggleActive}
       />
     </div>
   );

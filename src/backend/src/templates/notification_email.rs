@@ -83,8 +83,8 @@ fn build_combined_table(
         }
     }
 
-    let gh = "background-color: #7A3B00; color: #ffffff; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #6A2F00;";
-    let ch = "background-color: #D4A017; color: #4A2800; padding: 8px 6px; text-align: center; font-weight: bold; font-size: 12px; border: 1px solid #C09015;";
+    let gh = "background-color: #7A3B00; color: #ffffff; padding: 7px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #6A2F00;";
+    let ch = "background-color: #D4A017; color: #4A2800; padding: 6px 6px; text-align: center; font-weight: bold; font-size: 12px; border: 1px solid #C09015;";
 
     // Table with grouped headers
     html.push_str("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px;\">\n");
@@ -106,7 +106,7 @@ fn build_combined_table(
     html.push_str("</thead>\n<tbody>\n");
 
     if line_names.is_empty() {
-        html.push_str("<tr><td colspan=\"10\" style=\"padding: 10px; text-align: center; color: #999; font-style: italic; border: 1px solid #ddd;\">No results</td></tr>\n");
+        html.push_str("<tr><td colspan=\"10\" style=\"padding: 7px; text-align: center; color: #999; font-style: italic; border: 1px solid #ddd;\">No results</td></tr>\n");
     } else {
         for line_name in &line_names {
             let info = info_map[line_name];
@@ -144,8 +144,8 @@ fn build_combined_table(
                 ("N/A".into(), "N/A".into(), "N/A".into(), "N/A".into())
             };
 
-            let td = format!("padding: 8px 6px; text-align: center; border: 1px solid #ddd; {}", row_bg);
-            let td_green = format!("padding: 8px 6px; text-align: center; border: 1px solid #ddd; color: #27AE60; font-weight: bold; {}", row_bg);
+            let td = format!("padding: 6px 6px; text-align: center; border: 1px solid #ddd; {}", row_bg);
+            let td_green = format!("padding: 6px 6px; text-align: center; border: 1px solid #ddd; color: #27AE60; font-weight: bold; {}", row_bg);
 
             html.push_str(&format!("<tr style=\"{}\">\n", row_bg));
             html.push_str(&format!("<td style=\"{}\">{}</td>\n", td, escape_html(&info.number)));
@@ -172,8 +172,8 @@ fn build_speed_test_table(
     html: &mut String,
     speed_results: &[(LineInfo, Option<&SpeedTestResult>)],
 ) {
-    let gh = "background-color: #7A3B00; color: #ffffff; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #6A2F00;";
-    let ch = "background-color: #D4A017; color: #4A2800; padding: 8px 6px; text-align: center; font-weight: bold; font-size: 12px; border: 1px solid #C09015;";
+    let gh = "background-color: #7A3B00; color: #ffffff; padding: 7px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #6A2F00;";
+    let ch = "background-color: #D4A017; color: #4A2800; padding: 6px 6px; text-align: center; font-weight: bold; font-size: 12px; border: 1px solid #C09015;";
 
     html.push_str("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px;\">\n");
     html.push_str("<thead>\n");
@@ -193,9 +193,9 @@ fn build_speed_test_table(
     html.push_str("</thead>\n<tbody>\n");
 
     if speed_results.is_empty() {
-        html.push_str("<tr><td colspan=\"6\" style=\"padding: 10px; text-align: center; color: #999; font-style: italic; border: 1px solid #ddd;\">No speed test results</td></tr>\n");
+        html.push_str("<tr><td colspan=\"6\" style=\"padding: 7px; text-align: center; color: #999; font-style: italic; border: 1px solid #ddd;\">No speed test results</td></tr>\n");
     } else {
-        let td = "padding: 8px 6px; text-align: center; border: 1px solid #ddd;";
+        let td = "padding: 6px 6px; text-align: center; border: 1px solid #ddd;";
         for (info, result) in speed_results {
             if let Some(st) = result {
                 let download = st.download_speed.map(|s| format!("{:.2} Mbps", s)).unwrap_or_else(|| "N/A".into());
@@ -229,8 +229,8 @@ fn build_quota_check_table(
     html: &mut String,
     quota_results: &[(LineInfo, Option<&QuotaResult>)],
 ) {
-    let gh = "background-color: #7A3B00; color: #ffffff; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #6A2F00;";
-    let ch = "background-color: #D4A017; color: #4A2800; padding: 8px 6px; text-align: center; font-weight: bold; font-size: 12px; border: 1px solid #C09015;";
+    let gh = "background-color: #7A3B00; color: #ffffff; padding: 7px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #6A2F00;";
+    let ch = "background-color: #D4A017; color: #4A2800; padding: 6px 6px; text-align: center; font-weight: bold; font-size: 12px; border: 1px solid #C09015;";
 
     html.push_str("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px;\">\n");
     html.push_str("<thead>\n");
@@ -250,7 +250,7 @@ fn build_quota_check_table(
     html.push_str("</thead>\n<tbody>\n");
 
     if quota_results.is_empty() {
-        html.push_str("<tr><td colspan=\"8\" style=\"padding: 10px; text-align: center; color: #999; font-style: italic; border: 1px solid #ddd;\">No quota check results</td></tr>\n");
+        html.push_str("<tr><td colspan=\"8\" style=\"padding: 7px; text-align: center; color: #999; font-style: italic; border: 1px solid #ddd;\">No quota check results</td></tr>\n");
     } else {
         for (info, result) in quota_results {
             if let Some(qr) = result {
@@ -270,8 +270,8 @@ fn build_quota_check_table(
                 let renewal = qr.renewal_date.map(|d| d.format("%d-%m-%Y").to_string()).unwrap_or_else(|| "N/A".into());
                 let balance = qr.balance.map(|b| format!("{:.2}", b)).unwrap_or_else(|| "N/A".into());
 
-                let td = format!("padding: 8px 6px; text-align: center; border: 1px solid #ddd; {}", row_bg);
-                let td_green = format!("padding: 8px 6px; text-align: center; border: 1px solid #ddd; color: #27AE60; font-weight: bold; {}", row_bg);
+                let td = format!("padding: 6px 6px; text-align: center; border: 1px solid #ddd; {}", row_bg);
+                let td_green = format!("padding: 6px 6px; text-align: center; border: 1px solid #ddd; color: #27AE60; font-weight: bold; {}", row_bg);
 
                 html.push_str(&format!("<tr style=\"{}\">\n", row_bg));
                 html.push_str(&format!("<td style=\"{}\">{}</td>\n", td, escape_html(&info.number)));
@@ -284,7 +284,7 @@ fn build_quota_check_table(
                 html.push_str(&format!("<td style=\"{}\">{}</td>\n", td, balance));
                 html.push_str("</tr>\n");
             } else {
-                let td = "padding: 8px 6px; text-align: center; border: 1px solid #ddd;";
+                let td = "padding: 6px 6px; text-align: center; border: 1px solid #ddd;";
                 html.push_str("<tr>\n");
                 html.push_str(&format!("<td style=\"{}\">{}</td>\n", td, escape_html(&info.number)));
                 html.push_str(&format!("<td style=\"{}\">{}</td>\n", td, escape_html(&info.name)));
