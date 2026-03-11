@@ -2674,7 +2674,7 @@ dependencies = [
 
 [[package]]
 name = "net-ninja"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",
@@ -2712,7 +2712,7 @@ dependencies = [
 
 [[package]]
 name = "netninja-desktop"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "log",
  "net-ninja",
