@@ -1,7 +1,8 @@
-// Re-export the Tauri adapter for use by the frontend's Tauri app
+// Re-export the Tauri adapter only when tauri-app feature is enabled
+#[cfg(feature = "tauri-app")]
 pub use crate::adapters::tauri;
 
-// Make the crate a library - include all modules needed by the Tauri adapter
+// All modules still public for the web app
 pub mod adapters;
 pub mod app;
 pub mod bootstrap;
@@ -15,7 +16,4 @@ pub mod models;
 pub mod repositories;
 pub mod services;
 pub mod templates;
-
-// Service module - contains scheduler lock (always available) and Windows service
-// components (feature-gated within the module)
 pub mod service;

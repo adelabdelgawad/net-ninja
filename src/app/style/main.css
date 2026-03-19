@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* NetNinja Dark Theme Design Tokens */
+:root {
+    /* Background colors */
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --card: 224 71% 6%;
+    --card-foreground: 213 31% 91%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 213 31% 91%;
+
+    /* Primary - Blue accent */
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    /* Secondary */
+    --secondary: 222.2 47.4% 11.2%;
+    --secondary-foreground: 210 40% 98%;
+
+    /* Muted */
+    --muted: 223 47% 11%;
+    --muted-foreground: 215.4 16.3% 56.9%;
+
+    /* Accent */
+    --accent: 216 34% 17%;
+    --accent-foreground: 210 40% 98%;
+
+    /* Destructive */
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* Border & Input */
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
+    --ring: 224 64% 33%;
+
+    /* Radius */
+    --radius: 0.5rem;
+
+    /* Status colors */
+    --success: 142 76% 36%;
+    --success-foreground: 144 61% 20%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 36 100% 11%;
+    --info: 199 89% 48%;
+    --info-foreground: 199 100% 15%;
+}
+
+/* Global base styles */
+* {
+    border-color: hsl(var(--border));
+}
+
+body {
+    @apply bg-slate-950 text-slate-100 font-sans antialiased;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+}
+::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+}

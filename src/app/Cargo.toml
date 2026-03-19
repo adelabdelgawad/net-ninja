@@ -1,0 +1,77 @@
+[package]
+name = "netninja-web"
+version = "0.1.0"
+edition = "2021"
+
+# The lib is compiled for both WASM (hydrate) and SSR
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# The binary is server-only (SSR)
+[[bin]]
+name = "netninja-web"
+path = "src/main.rs"
+required-features = ["ssr"]
+
+[dependencies]
+leptos = { workspace = true }
+leptos_meta = { workspace = true }
+leptos_router = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+
+# SSR-only dependencies (not compiled to WASM)
+leptos_axum = { workspace = true, optional = true }
+axum = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+tower = { workspace = true, optional = true }
+tower-http = { workspace = true, optional = true }
+tower-sessions = { workspace = true, optional = true }
+tower-sessions-sqlx-store = { workspace = true, optional = true }
+net-ninja = { path = "../backend", default-features = false, optional = true }
+argon2 = { workspace = true, optional = true }
+governor = { workspace = true, optional = true }
+dashmap = { workspace = true, optional = true }
+sqlx = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }
+
+[features]
+hydrate = [
+    "leptos/hydrate",
+]
+ssr = [
+    "leptos/ssr",
+    "dep:leptos_axum",
+    "dep:axum",
+    "dep:tokio",
+    "dep:tower",
+    "dep:tower-http",
+    "dep:tower-sessions",
+    "dep:tower-sessions-sqlx-store",
+    "dep:net-ninja",
+    "dep:argon2",
+    "dep:governor",
+    "dep:dashmap",
+    "dep:sqlx",
+    "dep:tracing-subscriber",
+    "dep:http",
+    "dep:uuid",
+]
+
+[package.metadata.leptos]
+output-name = "netninja-web"
+site-root = "target/site"
+site-pkg-dir = "pkg"
+style-file = "style/main.css"
+assets-dir = "assets"
+tailwind-input-file = "style/main.css"
+# The target for the lib (WASM)
+lib-default-features = false
+lib-features = ["hydrate"]
+# The target for the bin (server)
+bin-default-features = false
+bin-features = ["ssr"]
