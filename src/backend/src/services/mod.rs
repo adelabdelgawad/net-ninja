@@ -11,6 +11,7 @@ pub mod task_notification_config_service;
 pub mod notification_service;
 pub mod task_runtime;
 pub mod ews_client;
+pub mod web_operation_service;
 
 pub use line_service::LineService;
 pub use quota_check_service::QuotaCheckService;
@@ -23,3 +24,4 @@ pub use task_service::TaskService;
 pub use task_execution_service::TaskExecutionService;
 pub use task_notification_config_service::TaskNotificationConfigService;
 pub use notification_service::NotificationService;
+pub use web_operation_service::{WebOperationService, ExecutionStatusResponse};

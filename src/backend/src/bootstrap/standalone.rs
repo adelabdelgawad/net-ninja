@@ -37,7 +37,10 @@ pub async fn run(settings: Settings) -> AppResult<()> {
             if should_fallback {
                 tracing::warn!("SQLite unavailable ({}), entering fallback mode", error_msg);
                 let state = AppState::new_fallback(settings, error_msg, encryption_key);
+                #[cfg(feature = "tauri-app")]
                 return run_tauri_fallback(state);
+                #[cfg(not(feature = "tauri-app"))]
+                return Err(AppError::Internal(format!("Database unavailable: {}", state.init_error.as_deref().map(|s| s.as_str()).unwrap_or("unknown"))));
             } else {
                 return Err(e);
             }
@@ -54,7 +57,10 @@ pub async fn run(settings: Settings) -> AppResult<()> {
                 || error_msg.contains("disk I/O error") {
                 tracing::warn!("Migration failed ({}), entering fallback mode", error_msg);
                 let state = AppState::new_fallback(settings, error_msg, encryption_key);
+                #[cfg(feature = "tauri-app")]
                 return run_tauri_fallback(state);
+                #[cfg(not(feature = "tauri-app"))]
+                return Err(AppError::Internal(format!("Migration failed: {}", state.init_error.as_deref().map(|s| s.as_str()).unwrap_or("unknown"))));
             } else {
                 return Err(e);
             }
@@ -145,7 +151,14 @@ pub async fn run(settings: Settings) -> AppResult<()> {
     };
 
     // Build and run Tauri application
-    run_tauri_app(state, job_runner, scheduler_lock, heartbeat_shutdown)
+    #[cfg(feature = "tauri-app")]
+    return run_tauri_app(state, job_runner, scheduler_lock, heartbeat_shutdown);
+
+    #[cfg(not(feature = "tauri-app"))]
+    {
+        let _ = (state, job_runner, scheduler_lock, heartbeat_shutdown);
+        Ok(())
+    }
 }
 
 /// Start the scheduler with lock acquisition and heartbeat task
@@ -231,6 +244,7 @@ async fn start_scheduler_with_lock(
 }
 
 /// Run Tauri in full mode
+#[cfg(feature = "tauri-app")]
 fn run_tauri_app(
     state: AppState,
     job_runner: Option<JobRunner>,
@@ -269,6 +283,7 @@ fn run_tauri_app(
 }
 
 /// Run Tauri in fallback mode (no database)
+#[cfg(feature = "tauri-app")]
 fn run_tauri_fallback(state: AppState) -> AppResult<()> {
     use crate::adapters::tauri::build_tauri_app;
     let app = build_tauri_app(state, None).map_err(|e| AppError::Internal(e.to_string()))?;
