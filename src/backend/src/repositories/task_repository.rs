@@ -27,7 +27,7 @@ impl TaskRepository {
     pub async fn create(
         pool: &SqlitePool,
         name: &str,
-        task_types: &str,  // JSON array string
+        task_types: &str, // JSON array string
         run_mode: &str,
         schedule_json: Option<&str>,
         show_browser: bool,
@@ -66,7 +66,8 @@ impl TaskRepository {
         );
 
         // Get current task to have a baseline
-        let current = Self::get_by_id(pool, id).await?
+        let current = Self::get_by_id(pool, id)
+            .await?
             .ok_or_else(|| crate::errors::AppError::NotFound(format!("Task {} not found", id)))?;
 
         // Use provided values or fall back to current values
@@ -92,7 +93,7 @@ impl TaskRepository {
                 updated_at = datetime('now', 'utc')
             WHERE id = $6
             RETURNING *
-            "#
+            "#,
         )
         .bind(final_name)
         .bind(final_task_types)
@@ -123,14 +124,17 @@ impl TaskRepository {
     }
 
     /// Toggle is_active flag
-    pub async fn toggle_active(pool: &SqlitePool, id: i64, is_active: bool) -> AppResult<Option<Task>> {
-        let task = sqlx::query_as::<_, Task>(
-            "UPDATE tasks SET is_active = $1 WHERE id = $2 RETURNING *"
-        )
-        .bind(is_active as i32)
-        .bind(id)
-        .fetch_optional(pool)
-        .await?;
+    pub async fn toggle_active(
+        pool: &SqlitePool,
+        id: i64,
+        is_active: bool,
+    ) -> AppResult<Option<Task>> {
+        let task =
+            sqlx::query_as::<_, Task>("UPDATE tasks SET is_active = $1 WHERE id = $2 RETURNING *")
+                .bind(is_active as i32)
+                .bind(id)
+                .fetch_optional(pool)
+                .await?;
         Ok(task)
     }
 
@@ -170,21 +174,48 @@ impl TaskRepository {
         Ok(result.rows_affected())
     }
 
-    /// Check if task name exists (case-insensitive)
-    pub async fn name_exists(pool: &SqlitePool, name: &str) -> AppResult<bool> {
+    /// Count active, scheduled tasks whose `task_types` JSON array includes the
+    /// given type (e.g. "quota_check" or "speed_test").
+    ///
+    /// Used to decide whether the legacy all-lines config-cron job for that type
+    /// should be registered: if the user has defined scheduled tasks of the type,
+    /// the per-task path owns it and the legacy cron is skipped to avoid duplicate
+    /// scrapes/tests.
+    pub async fn count_active_scheduled_of_type(
+        pool: &SqlitePool,
+        task_type: &str,
+    ) -> AppResult<i64> {
+        // task_types is a JSON array string, e.g. ["quota_check","speed_test"].
+        // Match the quoted token so "quota_check" can't partial-match something else.
+        let pattern = format!("%\"{}\"%", task_type);
         let count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM tasks WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))"
+            "SELECT COUNT(*) FROM tasks \
+             WHERE run_mode = 'scheduled' AND is_active = 1 AND task_types LIKE $1",
         )
-        .bind(name)
+        .bind(pattern)
         .fetch_one(pool)
         .await?;
+        Ok(count.0)
+    }
+
+    /// Check if task name exists (case-insensitive)
+    pub async fn name_exists(pool: &SqlitePool, name: &str) -> AppResult<bool> {
+        let count: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM tasks WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))")
+                .bind(name)
+                .fetch_one(pool)
+                .await?;
         Ok(count.0 > 0)
     }
 
     /// Check if task name exists excluding a specific ID (for updates)
-    pub async fn name_exists_excluding(pool: &SqlitePool, name: &str, exclude_id: i64) -> AppResult<bool> {
+    pub async fn name_exists_excluding(
+        pool: &SqlitePool,
+        name: &str,
+        exclude_id: i64,
+    ) -> AppResult<bool> {
         let count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM tasks WHERE LOWER(TRIM(name)) = LOWER(TRIM($1)) AND id != $2"
+            "SELECT COUNT(*) FROM tasks WHERE LOWER(TRIM(name)) = LOWER(TRIM($1)) AND id != $2",
         )
         .bind(name)
         .bind(exclude_id)
@@ -195,12 +226,11 @@ impl TaskRepository {
 
     /// Get line IDs for a task
     pub async fn get_line_ids(pool: &SqlitePool, task_id: i64) -> AppResult<Vec<i64>> {
-        let line_ids: Vec<(i64,)> = sqlx::query_as(
-            "SELECT line_id FROM task_lines WHERE task_id = $1 ORDER BY line_id"
-        )
-        .bind(task_id)
-        .fetch_all(pool)
-        .await?;
+        let line_ids: Vec<(i64,)> =
+            sqlx::query_as("SELECT line_id FROM task_lines WHERE task_id = $1 ORDER BY line_id")
+                .bind(task_id)
+                .fetch_all(pool)
+                .await?;
         Ok(line_ids.into_iter().map(|row| row.0).collect())
     }
 
