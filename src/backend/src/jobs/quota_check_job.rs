@@ -9,6 +9,7 @@ use crate::config::Settings;
 use crate::db::create_pool;
 use crate::errors::AppResult;
 use crate::models::{CreateQuotaResultRequest, Line};
+use crate::repositories::ServiceInfoRepository;
 use crate::services::{LineService, LogService, QuotaCheckService};
 
 const LOGIN_URL: &str = "https://my.te.eg/user/login";
@@ -26,7 +27,8 @@ const RENEWAL_DATE_SELECTOR: &str = "#_bes_window > main > div > div > div.ant-r
 const USERNAME_INPUT: &str = "#login_loginid_input_01";
 const PASSWORD_INPUT: &str = "#login_password_input_01";
 const LOGIN_TYPE_SELECTOR: &str = "#login_input_type_01";
-const LOGIN_TYPE_OPTION: &str = ".ant-select-item-option-active .ant-space-item:nth-child(2) > span";
+const LOGIN_TYPE_OPTION: &str =
+    ".ant-select-item-option-active .ant-space-item:nth-child(2) > span";
 const LOGIN_BUTTON: &str = "#login-withecare";
 
 #[derive(Debug, Default, Clone)]
@@ -46,7 +48,13 @@ pub async fn run(settings: &Settings) -> AppResult<()> {
     // Create database pool for this job run
     let pool = create_pool().await?;
 
-    LogService::info(&pool, process_id, "quota_check_job::run", "Starting quota check job").await?;
+    LogService::info(
+        &pool,
+        process_id,
+        "quota_check_job::run",
+        "Starting quota check job",
+    )
+    .await?;
 
     // Get all lines with credentials
     let all_lines = LineService::get_all_with_credentials(&pool).await?;
@@ -96,7 +104,11 @@ pub async fn run(settings: &Settings) -> AppResult<()> {
             message: Some("Quota check in progress".to_string()),
         };
         if let Err(e) = QuotaCheckService::create(&pool, pending).await {
-            tracing::warn!("Failed to insert pending record for line {}: {}", line.id, e);
+            tracing::warn!(
+                "Failed to insert pending record for line {}: {}",
+                line.id,
+                e
+            );
         }
     }
 
@@ -125,10 +137,20 @@ pub async fn run(settings: &Settings) -> AppResult<()> {
     )
     .await?;
 
+    // Instrumentation: record that the job ran to completion (per-line errors are
+    // tracked separately in quota_results). Best-effort.
+    if let Err(e) = ServiceInfoRepository::record_job_success(&pool, "quota_check").await {
+        tracing::warn!("Failed to record quota_check last-success marker: {:?}", e);
+    }
+
     Ok(())
 }
 
-async fn check_quota_for_line(pool: &SqlitePool, settings: &Settings, line: &Line) -> AppResult<()> {
+async fn check_quota_for_line(
+    pool: &SqlitePool,
+    settings: &Settings,
+    line: &Line,
+) -> AppResult<()> {
     let process_id = Uuid::new_v4();
 
     LogService::info_for_line(
@@ -180,7 +202,10 @@ async fn check_quota_for_line(pool: &SqlitePool, settings: &Settings, line: &Lin
 /// Async quota scraping using chaser-oxide
 async fn scrape_quota_data(settings: &Settings, line: &Line) -> AppResult<QuotaData> {
     let scrape_start = std::time::Instant::now();
-    tracing::info!("[scrape_quota_data] ========== STARTING SCRAPE FOR '{}' ==========", line.name);
+    tracing::info!(
+        "[scrape_quota_data] ========== STARTING SCRAPE FOR '{}' ==========",
+        line.name
+    );
 
     // Detect service mode for logging and browser selection
     #[cfg(all(windows, feature = "service"))]
@@ -283,15 +308,23 @@ async fn login(driver: &WebDriverClient, line: &Line) -> AppResult<()> {
 
     // Enter username — type naturally first (anti-detection), then force React state sync
     let type_start = std::time::Instant::now();
-    driver.click_and_type(USERNAME_INPUT, &line.username).await?;
+    driver
+        .click_and_type(USERNAME_INPUT, &line.username)
+        .await?;
     tracing::info!(
         "[login] Username entered in {}ms",
         type_start.elapsed().as_millis()
     );
 
     // Force React state sync for username (CDP type_str may not trigger React onChange)
-    if let Err(e) = driver.set_react_input_value(USERNAME_INPUT, &line.username).await {
-        tracing::warn!("[login] React value sync failed for username (continuing): {}", e);
+    if let Err(e) = driver
+        .set_react_input_value(USERNAME_INPUT, &line.username)
+        .await
+    {
+        tracing::warn!(
+            "[login] React value sync failed for username (continuing): {}",
+            e
+        );
     }
 
     // Conditionally select login type (WE serves different page versions)
@@ -309,28 +342,42 @@ async fn login(driver: &WebDriverClient, line: &Line) -> AppResult<()> {
         driver.click(LOGIN_TYPE_SELECTOR).await?;
         tokio::time::sleep(Duration::from_millis(200)).await;
         driver.click(LOGIN_TYPE_OPTION).await?;
-        tracing::info!("[login] Login type selected in {}ms", type_start.elapsed().as_millis());
+        tracing::info!(
+            "[login] Login type selected in {}ms",
+            type_start.elapsed().as_millis()
+        );
     } else {
         tracing::info!("[login] Login type dropdown absent — skipping");
     }
 
     // Enter password — type naturally first, then force React state sync
     let pass_start = std::time::Instant::now();
-    driver.click_and_type(PASSWORD_INPUT, &line.password).await?;
+    driver
+        .click_and_type(PASSWORD_INPUT, &line.password)
+        .await?;
     tracing::info!(
         "[login] Password entered in {}ms",
         pass_start.elapsed().as_millis()
     );
 
     // Force React state sync for password
-    if let Err(e) = driver.set_react_input_value(PASSWORD_INPUT, &line.password).await {
-        tracing::warn!("[login] React value sync failed for password (continuing): {}", e);
+    if let Err(e) = driver
+        .set_react_input_value(PASSWORD_INPUT, &line.password)
+        .await
+    {
+        tracing::warn!(
+            "[login] React value sync failed for password (continuing): {}",
+            e
+        );
     }
 
     // Wait for login button to become enabled (form validation must pass first)
     match driver.wait_for_element_enabled(LOGIN_BUTTON, 5).await {
         Ok(_) => tracing::info!("[login] Login button is enabled"),
-        Err(e) => tracing::warn!("[login] Login button still disabled after waiting: {} — clicking anyway", e),
+        Err(e) => tracing::warn!(
+            "[login] Login button still disabled after waiting: {} — clicking anyway",
+            e
+        ),
     }
 
     // Click login button with human-like behavior
@@ -360,10 +407,14 @@ async fn login(driver: &WebDriverClient, line: &Line) -> AppResult<()> {
 
     if !redirected {
         if let Ok(url) = driver.get_current_url().await {
-            tracing::error!("[login] Login verification FAILED — still on login page: {}", url);
-            return Err(crate::errors::AppError::WebDriver(
-                format!("Login failed for '{}' — page stayed at login URL: {}", line.name, url)
-            ));
+            tracing::error!(
+                "[login] Login verification FAILED — still on login page: {}",
+                url
+            );
+            return Err(crate::errors::AppError::WebDriver(format!(
+                "Login failed for '{}' — page stayed at login URL: {}",
+                line.name, url
+            )));
         }
     } else if let Ok(url) = driver.get_current_url().await {
         tracing::info!("[login] Login verified — redirected to: {}", url);
@@ -389,7 +440,10 @@ async fn scrape_overview_page(driver: &WebDriverClient, data: &mut QuotaData) ->
 
     // Log current URL to verify we're on the right page
     if let Ok(url) = driver.get_current_url().await {
-        tracing::info!("[scrape_overview_page] Current URL after navigation: {}", url);
+        tracing::info!(
+            "[scrape_overview_page] Current URL after navigation: {}",
+            url
+        );
     }
 
     // Wait for balance element (longer timeout for headless)
