@@ -21,8 +21,8 @@ interface SmtpFormDialogProps {
   isLoading: Accessor<boolean>;
 }
 
-const inputClass = "h-[28px] w-full px-2 bg-[#1e1e1e] border border-[#3c3c3c] text-[#cccccc] text-[12px] rounded-none focus:outline-none focus:border-[#007acc] placeholder:text-[#555]";
-const labelClass = "text-[11px] text-[#808080] mb-1 block";
+const inputClass = "h-[28px] w-full px-2 bg-sidebar border border-border text-foreground text-[12px] rounded-none focus:outline-none focus:border-primary placeholder:text-muted-foreground";
+const labelClass = "text-[11px] text-muted-foreground mb-1 block";
 
 export const SmtpFormDialog: Component<SmtpFormDialogProps> = (props) => {
   const isAdd = () => props.mode === 'add';
@@ -34,13 +34,13 @@ export const SmtpFormDialog: Component<SmtpFormDialogProps> = (props) => {
           <DialogTitle>{isAdd() ? 'Add SMTP Server' : 'Edit SMTP Server'}</DialogTitle>
           <button
             type="button"
-            class="text-[#808080] hover:text-[#cccccc] p-0.5 rounded-[2px] hover:bg-white/[0.06] transition-colors"
+            class="text-muted-foreground hover:text-foreground p-0.5 rounded-[2px] hover:bg-white/[0.06] transition-colors"
             onClick={() => props.onOpenChange(false)}
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8.707l3.646 3.647.708-.708L8.707 8l3.647-3.646-.708-.708L8 7.293 4.354 3.646l-.708.708L7.293 8l-3.647 3.646.708.708L8 8.707z"/></svg>
           </button>
         </DialogHeader>
-        <DialogDescription class="px-4 py-2 text-[11px] text-[#808080]">
+        <DialogDescription class="px-4 py-2 text-[11px] text-muted-foreground">
           {isAdd()
             ? 'Configure a new SMTP server for sending emails'
             : 'Update the SMTP server configuration'}
@@ -50,7 +50,7 @@ export const SmtpFormDialog: Component<SmtpFormDialogProps> = (props) => {
           <div>
             <label class={labelClass}>Email Provider</label>
             <select
-              class="w-full px-3 py-1.5 text-[12px] text-[#cccccc] bg-[#2d2d2d] border border-[#3c3c3c] focus:outline-none focus:border-[#007acc]"
+              class="w-full px-3 py-1.5 text-[12px] text-foreground bg-accent border border-border focus:outline-none focus:border-primary"
               value={props.formData().vendor || 'gmail'}
               onChange={(e) => {
                 const vendor = e.currentTarget.value as SmtpVendor;
@@ -70,7 +70,7 @@ export const SmtpFormDialog: Component<SmtpFormDialogProps> = (props) => {
               <option value="exchange">Microsoft Exchange</option>
               <option value="outlook365">Outlook 365</option>
             </select>
-            <p class="mt-1.5 text-[10px] text-[#808080]">
+            <p class="mt-1.5 text-[10px] text-muted-foreground">
               {VENDOR_CONFIGS[props.formData().vendor || 'gmail'].description}
             </p>
           </div>
@@ -156,10 +156,10 @@ export const SmtpFormDialog: Component<SmtpFormDialogProps> = (props) => {
             </div>
           </div>
 
-          <div class="flex items-center justify-between px-3 py-2 rounded-[3px] border border-[#3c3c3c] bg-[#1e1e1e]">
+          <div class="flex items-center justify-between px-3 py-2 rounded-[3px] border border-border bg-sidebar">
             <div class="space-y-0.5">
-              <span class="text-[11px] text-[#cccccc] font-medium">Use TLS</span>
-              <p class="text-[10px] text-[#808080]">Encrypt connection with TLS</p>
+              <span class="text-[11px] text-foreground font-medium">Use TLS</span>
+              <p class="text-[10px] text-muted-foreground">Encrypt connection with TLS</p>
             </div>
             <Switch
               checked={props.formData().useTls ?? true}
@@ -171,14 +171,14 @@ export const SmtpFormDialog: Component<SmtpFormDialogProps> = (props) => {
         <DialogFooter>
           <button
             type="button"
-            class="h-[26px] px-3 text-[12px] rounded-[3px] border border-[#3c3c3c] bg-[#2d2d2d] text-[#cccccc] hover:bg-[#3c3c3c] hover:border-[#808080] transition-colors"
+            class="h-[26px] px-3 text-[12px] rounded-[3px] border border-border bg-accent text-foreground hover:bg-accent hover:border-border transition-colors"
             onClick={() => props.onOpenChange(false)}
           >
             Cancel
           </button>
           <button
             type="button"
-            class="h-[26px] px-3 text-[12px] rounded-[3px] border border-[#007acc] bg-[#007acc] text-white hover:bg-[#1a85c4] hover:border-[#1a85c4] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            class="h-[26px] px-3 text-[12px] rounded-[3px] border border-primary bg-primary text-white hover:bg-[#2563eb] hover:border-[#2563eb] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             onClick={props.onSubmit}
             disabled={props.isLoading()}
           >

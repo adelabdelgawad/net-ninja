@@ -9,7 +9,7 @@ interface SmtpServerActionsProps {
   onDelete: () => void;
 }
 
-const actionBtnClass = "h-[28px] px-2.5 flex items-center gap-1.5 rounded-[6px] text-[11px] font-medium border border-[#3c3c3c] bg-[#2d2d2d] text-[#cccccc] hover:bg-[#3c3c3c] hover:border-[#555555] transition-colors";
+const actionBtnClass = "h-[28px] px-2.5 flex items-center gap-1.5 rounded-[6px] text-[11px] font-medium border border-border bg-accent text-foreground hover:bg-accent hover:border-border transition-colors";
 
 export const SmtpServerActions: Component<SmtpServerActionsProps> = (props) => {
   return (
@@ -42,7 +42,7 @@ export const SmtpServerActions: Component<SmtpServerActionsProps> = (props) => {
       {/* Delete */}
       <button
         type="button"
-        class="h-[28px] px-2.5 flex items-center rounded-[6px] text-[11px] font-medium border border-[#3c3c3c] bg-[#2d2d2d] text-[#808080] hover:bg-[#c72e0f]/15 hover:text-[#c72e0f] hover:border-[#c72e0f]/30 transition-colors"
+        class="h-[28px] px-2.5 flex items-center rounded-[6px] text-[11px] font-medium border border-border bg-accent text-muted-foreground hover:bg-[#ef4444]/15 hover:text-[#ef4444] hover:border-[#ef4444]/30 transition-colors"
         onClick={props.onDelete}
       >
         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">

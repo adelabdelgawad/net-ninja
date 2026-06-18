@@ -222,21 +222,21 @@ export const SmtpServersContent: Component<SmtpServersContentProps> = (props) =>
     <div class="flex flex-col h-full">
       {/* Content header - App Center style */}
       <div class="px-6 pt-6 pb-4 flex-shrink-0">
-        <h1 class="text-[20px] font-semibold text-[#eeeeee] mb-1">SMTP Servers</h1>
-        <p class="text-[13px] text-[#999999] leading-relaxed">
+        <h1 class="text-[20px] font-semibold text-foreground mb-1">SMTP Servers</h1>
+        <p class="text-[13px] text-muted-foreground leading-relaxed">
           Configure outgoing mail servers for sending notifications and reports.
         </p>
       </div>
 
       {/* Actions bar */}
       <div class="flex items-center gap-3 mb-4 px-6 flex-shrink-0">
-        <span class="text-[13px] font-medium text-[#cccccc]">
+        <span class="text-[13px] font-medium text-foreground">
           Configured servers ({configs()?.length ?? 0})
         </span>
         <div class="flex-1" />
         <button
           type="button"
-          class="h-[30px] px-4 text-[12px] font-medium rounded-[8px] bg-[#3584e4] text-white hover:bg-[#3987e5] transition-colors"
+          class="h-[30px] px-4 text-[12px] font-medium rounded-[8px] bg-primary text-white hover:bg-[#2563eb] transition-colors"
           onClick={openAddDialog}
         >
           + Add Server
@@ -245,11 +245,11 @@ export const SmtpServersContent: Component<SmtpServersContentProps> = (props) =>
 
       {/* No default warning */}
       <Show when={configs() && configs()!.length > 0 && !configs()!.some(c => c.isDefault)}>
-        <div class="mx-6 mb-3 flex items-center gap-2.5 px-3.5 py-2.5 rounded-[8px] bg-[#e5a50a]/10 border border-[#e5a50a]/20 flex-shrink-0">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="#e5a50a" class="shrink-0">
+        <div class="mx-6 mb-3 flex items-center gap-2.5 px-3.5 py-2.5 rounded-[8px] bg-[#f59e0b]/10 border border-[#f59e0b]/20 flex-shrink-0">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="#f59e0b" class="shrink-0">
             <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
           </svg>
-          <span class="text-[12px] text-[#e5a50a]">
+          <span class="text-[12px] text-[#f59e0b]">
             No default server selected. Set a favourite to enable email notifications.
           </span>
         </div>
