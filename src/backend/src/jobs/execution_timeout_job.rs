@@ -81,6 +81,19 @@ pub async fn run(pool: &SqlitePool) -> AppResult<()> {
                 e
             );
         }
+
+        // Best-effort: abort the actual in-process run. The DB flip above records
+        // the timeout regardless, but without this a genuinely hung task (e.g. a
+        // wedged browser scrape) keeps consuming resources. cancel() only finds
+        // tasks running in *this* process's registry — which is the scheduler-
+        // owning process that spawned the run — and is a no-op otherwise.
+        if crate::services::task_runtime::cancel(execution.task_id).await {
+            tracing::info!(
+                "Requested cancellation of hung task {} (execution {})",
+                execution.task_id,
+                execution.execution_id
+            );
+        }
     }
 
     Ok(())
