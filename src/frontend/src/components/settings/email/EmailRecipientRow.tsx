@@ -10,12 +10,12 @@ interface EmailRecipientRowProps {
 
 export const EmailRecipientRow: Component<EmailRecipientRowProps> = (props) => {
   return (
-    <div class="group flex items-center gap-3 px-4 py-3 hover:bg-[#2d2d2d] transition-colors rounded-[8px]">
+    <div class="group flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors rounded-[8px]">
       {/* User icon — green: active, grey: inactive */}
       <div
         class="flex items-center justify-center h-9 w-9 rounded-[10px] shrink-0"
         classList={{
-          'bg-[#26a269]/15': props.email.isActive,
+          'bg-[#10b981]/15': props.email.isActive,
           'bg-[#808080]/10': !props.email.isActive,
         }}
       >
@@ -26,23 +26,23 @@ export const EmailRecipientRow: Component<EmailRecipientRowProps> = (props) => {
 
       {/* Content */}
       <div class="flex-1 min-w-0">
-        <span class="text-[13px] font-medium text-[#eeeeee] truncate block">
+        <span class="text-[13px] font-medium text-foreground truncate block">
           {props.email.name || 'Unnamed'}
         </span>
-        <span class="text-[11px] text-[#999999] truncate block mt-0.5">
+        <span class="text-[11px] text-muted-foreground truncate block mt-0.5">
           {props.email.recipient}
         </span>
       </div>
 
       {/* Active toggle */}
       <div class="flex items-center gap-2 shrink-0">
-        <span class="text-[11px] text-[#999999]">
+        <span class="text-[11px] text-muted-foreground">
           {props.email.isActive ? 'Active' : 'Inactive'}
         </span>
         <div
           onClick={props.onToggleActive}
           class={`relative inline-flex h-[18px] w-[32px] items-center rounded-full transition-colors cursor-pointer ${
-            props.email.isActive ? 'bg-[#3584e4]' : 'bg-[#3c3c3c]'
+            props.email.isActive ? 'bg-primary' : 'bg-accent'
           }`}
         >
           <span
@@ -57,7 +57,7 @@ export const EmailRecipientRow: Component<EmailRecipientRowProps> = (props) => {
       <div class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
         <button
           type="button"
-          class="h-[28px] px-2.5 flex items-center gap-1.5 rounded-[6px] text-[11px] font-medium border border-[#3c3c3c] bg-[#2d2d2d] text-[#cccccc] hover:bg-[#3c3c3c] hover:border-[#555555] transition-colors"
+          class="h-[28px] px-2.5 flex items-center gap-1.5 rounded-[6px] text-[11px] font-medium border border-border bg-accent text-foreground hover:bg-accent hover:border-border transition-colors"
           onClick={props.onEdit}
         >
           <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
@@ -67,7 +67,7 @@ export const EmailRecipientRow: Component<EmailRecipientRowProps> = (props) => {
         </button>
         <button
           type="button"
-          class="h-[28px] px-2.5 flex items-center rounded-[6px] text-[11px] font-medium border border-[#3c3c3c] bg-[#2d2d2d] text-[#808080] hover:bg-[#c72e0f]/15 hover:text-[#c72e0f] hover:border-[#c72e0f]/30 transition-colors"
+          class="h-[28px] px-2.5 flex items-center rounded-[6px] text-[11px] font-medium border border-border bg-accent text-muted-foreground hover:bg-[#ef4444]/15 hover:text-[#ef4444] hover:border-[#ef4444]/30 transition-colors"
           onClick={props.onDelete}
         >
           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">

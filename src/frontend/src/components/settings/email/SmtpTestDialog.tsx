@@ -22,8 +22,8 @@ interface SmtpTestDialogProps {
   onTest: () => void;
 }
 
-const inputClass = "h-[28px] w-full px-2 bg-[#1e1e1e] border border-[#3c3c3c] text-[#cccccc] text-[12px] rounded-none focus:outline-none focus:border-[#007acc] placeholder:text-[#555]";
-const labelClass = "text-[11px] text-[#808080] mb-1 block";
+const inputClass = "h-[28px] w-full px-2 bg-sidebar border border-border text-foreground text-[12px] rounded-none focus:outline-none focus:border-primary placeholder:text-muted-foreground";
+const labelClass = "text-[11px] text-muted-foreground mb-1 block";
 
 export const SmtpTestDialog: Component<SmtpTestDialogProps> = (props) => {
   return (
@@ -33,14 +33,14 @@ export const SmtpTestDialog: Component<SmtpTestDialogProps> = (props) => {
           <DialogTitle>Test SMTP Connection</DialogTitle>
           <button
             type="button"
-            class="text-[#808080] hover:text-[#cccccc] p-0.5 rounded-[2px] hover:bg-white/[0.06] transition-colors"
+            class="text-muted-foreground hover:text-foreground p-0.5 rounded-[2px] hover:bg-white/[0.06] transition-colors"
             onClick={() => props.onOpenChange(false)}
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8.707l3.646 3.647.708-.708L8.707 8l3.647-3.646-.708-.708L8 7.293 4.354 3.646l-.708.708L7.293 8l-3.647 3.646.708.708L8 8.707z"/></svg>
           </button>
         </DialogHeader>
-        <DialogDescription class="px-4 py-2 text-[11px] text-[#808080]">
-          Send a test email using <strong class="text-[#cccccc]">"{props.config()?.name}"</strong>
+        <DialogDescription class="px-4 py-2 text-[11px] text-muted-foreground">
+          Send a test email using <strong class="text-foreground">"{props.config()?.name}"</strong>
         </DialogDescription>
 
         <div class="px-4 py-3 space-y-3">
@@ -65,7 +65,7 @@ export const SmtpTestDialog: Component<SmtpTestDialogProps> = (props) => {
           </Show>
 
           <Show when={props.testStatus() === 'error'}>
-            <div class="flex items-start gap-2 px-3 py-2 rounded-[3px] bg-[#c72e0f]/15 border border-[#c72e0f]/30 text-[11px] text-[#c72e0f]">
+            <div class="flex items-start gap-2 px-3 py-2 rounded-[3px] bg-[#ef4444]/15 border border-[#ef4444]/30 text-[11px] text-[#ef4444]">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" class="shrink-0 mt-0.5">
                 <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1a6 6 0 1 1 0 12A6 6 0 0 1 8 2zm-.7 3h1.4L8.4 9H7.6L7.3 5zm.7 5.5a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6z"/>
               </svg>
@@ -77,14 +77,14 @@ export const SmtpTestDialog: Component<SmtpTestDialogProps> = (props) => {
         <DialogFooter>
           <button
             type="button"
-            class="h-[26px] px-3 text-[12px] rounded-[3px] border border-[#3c3c3c] bg-[#2d2d2d] text-[#cccccc] hover:bg-[#3c3c3c] hover:border-[#808080] transition-colors"
+            class="h-[26px] px-3 text-[12px] rounded-[3px] border border-border bg-accent text-foreground hover:bg-accent hover:border-border transition-colors"
             onClick={() => props.onOpenChange(false)}
           >
             Close
           </button>
           <button
             type="button"
-            class="h-[26px] px-3 text-[12px] rounded-[3px] border border-[#007acc] bg-[#007acc] text-white hover:bg-[#1a85c4] hover:border-[#1a85c4] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+            class="h-[26px] px-3 text-[12px] rounded-[3px] border border-primary bg-primary text-white hover:bg-[#2563eb] hover:border-[#2563eb] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
             onClick={props.onTest}
             disabled={props.testStatus() === 'testing' || !props.testRecipient()}
           >

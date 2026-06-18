@@ -10,6 +10,11 @@ rust-version = "1.77.2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# Standalone workspace: keep this crate out of the root Cargo workspace
+# (root members are src/backend and src/app). Without this, `cargo`/`tauri`
+# errors that the package "believes it's in a workspace when it's not".
+[workspace]
+
 [lib]
 name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]

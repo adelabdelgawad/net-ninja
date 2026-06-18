@@ -160,21 +160,21 @@ export const EmailRecipientsContent: Component<EmailRecipientsContentProps> = (p
     <div class="flex flex-col h-full">
       {/* Content header - App Center style */}
       <div class="px-6 pt-6 pb-4 flex-shrink-0">
-        <h1 class="text-[20px] font-semibold text-[#eeeeee] mb-1">Email Recipients</h1>
-        <p class="text-[13px] text-[#999999] leading-relaxed">
+        <h1 class="text-[20px] font-semibold text-foreground mb-1">Email Recipients</h1>
+        <p class="text-[13px] text-muted-foreground leading-relaxed">
           Manage email addresses that receive notifications and daily reports.
         </p>
       </div>
 
       {/* Actions bar */}
       <div class="flex items-center gap-3 mb-4 px-6 flex-shrink-0">
-        <span class="text-[13px] font-medium text-[#cccccc]">
+        <span class="text-[13px] font-medium text-foreground">
           Recipients ({emails()?.length ?? 0})
         </span>
         <div class="flex-1" />
         <button
           type="button"
-          class="h-[30px] px-4 text-[12px] font-medium rounded-[8px] bg-[#3584e4] text-white hover:bg-[#3987e5] transition-colors"
+          class="h-[30px] px-4 text-[12px] font-medium rounded-[8px] bg-primary text-white hover:bg-[#2563eb] transition-colors"
           onClick={openAddDialog}
         >
           + Add Recipient

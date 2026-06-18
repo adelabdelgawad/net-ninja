@@ -24,7 +24,7 @@ export const EmailRecipientDeleteDialog: Component<EmailRecipientDeleteDialogPro
           <DialogTitle>Delete Email Recipient</DialogTitle>
           <button
             type="button"
-            class="text-[#808080] hover:text-[#cccccc] p-0.5 rounded-[2px] hover:bg-white/[0.06] transition-colors"
+            class="text-muted-foreground hover:text-foreground p-0.5 rounded-[2px] hover:bg-white/[0.06] transition-colors"
             onClick={() => props.onOpenChange(false)}
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8.707l3.646 3.647.708-.708L8.707 8l3.647-3.646-.708-.708L8 7.293 4.354 3.646l-.708.708L7.293 8l-3.647 3.646.708.708L8 8.707z"/></svg>
@@ -35,17 +35,17 @@ export const EmailRecipientDeleteDialog: Component<EmailRecipientDeleteDialogPro
           {(email) => (
             <div class="px-4 py-4">
               <div class="flex items-start gap-3">
-                <div class="flex-shrink-0 w-8 h-8 rounded-[3px] bg-[#c72e0f]/15 flex items-center justify-center">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="#c72e0f"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1a6 6 0 1 1 0 12A6 6 0 0 1 8 2zm-.7 3h1.4L8.4 9H7.6L7.3 5zm.7 5.5a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6z"/></svg>
+                <div class="flex-shrink-0 w-8 h-8 rounded-[3px] bg-[#ef4444]/15 flex items-center justify-center">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="#ef4444"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1a6 6 0 1 1 0 12A6 6 0 0 1 8 2zm-.7 3h1.4L8.4 9H7.6L7.3 5zm.7 5.5a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6z"/></svg>
                 </div>
                 <div>
-                  <p class="text-[13px] text-[#cccccc] mb-1">
+                  <p class="text-[13px] text-foreground mb-1">
                     Are you sure you want to delete <strong class="text-white">"{email().name || 'Unnamed'}"</strong>?
                   </p>
-                  <p class="text-[11px] text-[#808080] mb-1">
+                  <p class="text-[11px] text-muted-foreground mb-1">
                     {email().recipient}
                   </p>
-                  <p class="text-[11px] text-[#c72e0f]">
+                  <p class="text-[11px] text-[#ef4444]">
                     This action cannot be undone. The recipient will be removed from all notification configurations.
                   </p>
                 </div>
@@ -57,7 +57,7 @@ export const EmailRecipientDeleteDialog: Component<EmailRecipientDeleteDialogPro
         <DialogFooter>
           <button
             type="button"
-            class="h-[26px] px-3 text-[12px] rounded-[3px] border border-[#3c3c3c] bg-[#2d2d2d] text-[#cccccc] hover:bg-[#3c3c3c] hover:border-[#808080] transition-colors"
+            class="h-[26px] px-3 text-[12px] rounded-[3px] border border-border bg-accent text-foreground hover:bg-accent hover:border-border transition-colors"
             onClick={() => props.onOpenChange(false)}
             disabled={props.isLoading()}
           >
@@ -65,7 +65,7 @@ export const EmailRecipientDeleteDialog: Component<EmailRecipientDeleteDialogPro
           </button>
           <button
             type="button"
-            class="h-[26px] px-3 text-[12px] rounded-[3px] border border-[#c72e0f] bg-[#c72e0f] text-white hover:bg-[#d9534f] hover:border-[#d9534f] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            class="h-[26px] px-3 text-[12px] rounded-[3px] border border-[#ef4444] bg-[#ef4444] text-white hover:bg-[#d9534f] hover:border-[#d9534f] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             onClick={props.onDelete}
             disabled={props.isLoading()}
           >

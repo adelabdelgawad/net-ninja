@@ -10,23 +10,14 @@ interface EmailSettingsProps {
 
 type TabId = 'smtp' | 'recipients';
 
-interface NavItem {
+interface TabItem {
   id: TabId;
   label: string;
-  iconPath: string;
 }
 
-const navItems: NavItem[] = [
-  {
-    id: 'smtp',
-    label: 'SMTP Servers',
-    iconPath: 'M2 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v.217l5 3.125 5-3.125V4a1 1 0 0 0-1-1H4zm9 2.441-4.724 2.953a.5.5 0 0 1-.552 0L3 5.441V12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.441z',
-  },
-  {
-    id: 'recipients',
-    label: 'Recipients',
-    iconPath: 'M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM5.216 14A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216zM4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
-  },
+const tabs: TabItem[] = [
+  { id: 'smtp', label: 'SMTP Servers' },
+  { id: 'recipients', label: 'Recipients' },
 ];
 
 type EmailStatus = 'ready' | 'no-default' | 'no-recipients' | 'not-configured';
@@ -48,10 +39,10 @@ export const EmailSettings: Component<EmailSettingsProps> = (props) => {
   const statusConfig = () => {
     const s = emailStatus();
     switch (s) {
-      case 'ready': return { label: 'Email: Ready', color: '#26a269', dot: '#26a269' };
-      case 'no-default': return { label: 'No default server', color: '#e5a50a', dot: '#e5a50a' };
-      case 'no-recipients': return { label: 'No active recipients', color: '#e5a50a', dot: '#e5a50a' };
-      case 'not-configured': return { label: 'Not configured', color: '#c72e0f', dot: '#c72e0f' };
+      case 'ready': return { label: 'Email: Ready', class: 'text-success', dot: 'bg-success' };
+      case 'no-default': return { label: 'No default server', class: 'text-warning', dot: 'bg-warning' };
+      case 'no-recipients': return { label: 'No active recipients', class: 'text-warning', dot: 'bg-warning' };
+      case 'not-configured': return { label: 'Not configured', class: 'text-destructive', dot: 'bg-destructive' };
     }
   };
 
@@ -63,55 +54,38 @@ export const EmailSettings: Component<EmailSettingsProps> = (props) => {
   };
 
   return (
-    <div class="flex flex-1 min-h-0 h-full">
-      {/* Sidebar */}
-      <div class="w-[180px] shrink-0 bg-[#1e1e1e] border-r border-[#2a2a2a] flex flex-col">
-        {/* Sidebar header */}
-        <div class="px-4 pt-4 pb-3">
-          <h2 class="text-[13px] font-semibold text-[#cccccc]">Email</h2>
-        </div>
-
-        {/* Nav items */}
-        <nav class="flex-1 px-2 space-y-0.5">
-          <For each={navItems}>
-            {(item) => (
-              <button
-                type="button"
-                class={`w-full flex items-center gap-2.5 px-3 py-[7px] rounded-[8px] text-[12px] font-medium transition-colors cursor-pointer ${
-                  activeTab() === item.id
-                    ? 'bg-[#2d2d2d] text-[#ffffff]'
-                    : 'text-[#999999] hover:bg-[#252526] hover:text-[#cccccc]'
-                }`}
-                onClick={() => handleTabChange(item.id)}
-              >
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" class="shrink-0 opacity-80">
-                  <path d={item.iconPath} />
-                </svg>
-                {item.label}
-              </button>
-            )}
-          </For>
-        </nav>
-
-        {/* Email status indicator */}
-        <div class="px-3 py-3 border-t border-[#2a2a2a]">
-          <div class="flex items-center gap-2">
-            <div
-              class="h-2 w-2 rounded-full shrink-0"
-              style={{ "background-color": statusConfig().dot }}
-            />
-            <span
-              class="text-[11px] font-medium truncate"
-              style={{ color: statusConfig().color }}
+    <div class="flex flex-1 min-h-0 h-full flex-col bg-background">
+      {/* Top tab navigation (mockup .tab-nav style) */}
+      <nav class="flex items-center gap-1 px-6 bg-card border-b border-border shrink-0 overflow-x-auto">
+        <For each={tabs}>
+          {(tab) => (
+            <button
+              type="button"
+              onClick={() => handleTabChange(tab.id)}
+              class={`relative px-5 py-3 text-[14px] font-medium whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+                activeTab() === tab.id
+                  ? 'text-primary border-primary'
+                  : 'text-muted-foreground border-transparent hover:text-foreground'
+              }`}
             >
-              {statusConfig().label}
-            </span>
-          </div>
+              {tab.label}
+            </button>
+          )}
+        </For>
+
+        <div class="flex-1" />
+
+        {/* Email status pill */}
+        <div class="flex items-center gap-2 pr-1">
+          <span class={`h-2 w-2 rounded-full shrink-0 ${statusConfig().dot}`} />
+          <span class={`text-[12px] font-medium truncate ${statusConfig().class}`}>
+            {statusConfig().label}
+          </span>
         </div>
-      </div>
+      </nav>
 
       {/* Content area */}
-      <div class="flex-1 min-h-0 overflow-hidden bg-[#252526]">
+      <div class="flex-1 min-h-0 overflow-hidden bg-background">
         <Show when={activeTab() === 'smtp'}>
           <SmtpServersContent addTrigger={props.addTrigger} onAdd={props.onAdd} />
         </Show>
