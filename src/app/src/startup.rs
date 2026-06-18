@@ -9,10 +9,10 @@
 
 #[cfg(feature = "ssr")]
 pub mod ssr {
+    use argon2::password_hash::{rand_core::OsRng, PasswordHash, SaltString};
+    use argon2::{Argon2, PasswordHasher, PasswordVerifier};
     use sqlx::SqlitePool;
     use tower_sessions_sqlx_store::SqliteStore;
-    use argon2::{Argon2, PasswordHasher, PasswordVerifier};
-    use argon2::password_hash::{rand_core::OsRng, SaltString, PasswordHash};
 
     const DEFAULT_PASSWORD: &str = "admin";
     const DEFAULT_USERNAME: &str = "admin";
@@ -20,16 +20,14 @@ pub mod ssr {
     /// Ensure a default admin credential exists.
     /// If the web_admin_credentials table is empty, inserts admin/admin (argon2id).
     pub async fn bootstrap_admin(pool: &SqlitePool) -> Result<(), sqlx::Error> {
-        let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM web_admin_credentials"
-        )
-        .fetch_one(pool)
-        .await?;
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM web_admin_credentials")
+            .fetch_one(pool)
+            .await?;
 
         if count == 0 {
             let password_hash = hash_password(DEFAULT_PASSWORD);
             sqlx::query(
-                "INSERT INTO web_admin_credentials (username, password_hash) VALUES ($1, $2)"
+                "INSERT INTO web_admin_credentials (username, password_hash) VALUES ($1, $2)",
             )
             .bind(DEFAULT_USERNAME)
             .bind(&password_hash)
@@ -41,7 +39,11 @@ pub mod ssr {
         Ok(())
     }
 
-    /// Reset task_executions that were running at startup to 'failed'.
+    /// Reset task_executions AND tasks that were running at startup to 'failed'.
+    ///
+    /// Both must be reset: a `tasks` row left in 'running' by a crash is silently
+    /// excluded from all future scheduling (the scheduler skips `status='running'`),
+    /// so resetting only executions would leave the task permanently unscheduled.
     pub async fn reset_orphan_executions(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         let result = sqlx::query(
             "UPDATE task_executions SET status = 'failed', error_message = 'Server restarted', is_finished = 1 WHERE status = 'running'"
@@ -49,7 +51,21 @@ pub mod ssr {
         .execute(pool)
         .await?;
         if result.rows_affected() > 0 {
-            tracing::info!("Reset {} orphan task executions to failed", result.rows_affected());
+            tracing::info!(
+                "Reset {} orphan task executions to failed",
+                result.rows_affected()
+            );
+        }
+
+        let task_result =
+            sqlx::query("UPDATE tasks SET status = 'failed' WHERE status = 'running'")
+                .execute(pool)
+                .await?;
+        if task_result.rows_affected() > 0 {
+            tracing::info!(
+                "Reset {} orphan task(s) from 'running' to 'failed'",
+                task_result.rows_affected()
+            );
         }
         Ok(())
     }
@@ -61,7 +77,10 @@ pub mod ssr {
     ///   (c) INSERT OR REPLACE INTO web_admin_credentials with new hash
     ///   (d) delete trigger file
     ///   (e) log reset event (no password value)
-    pub async fn check_reset_file(pool: &SqlitePool, _store: &SqliteStore) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn check_reset_file(
+        pool: &SqlitePool,
+        _store: &SqliteStore,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let data_path = net_ninja::config::paths::get_shared_data_path();
         let trigger = data_path.join("reset_admin_password.bat");
 
@@ -117,4 +136,6 @@ pub mod ssr {
 }
 
 #[cfg(feature = "ssr")]
-pub use ssr::{bootstrap_admin, check_reset_file, hash_password, reset_orphan_executions, verify_password};
+pub use ssr::{
+    bootstrap_admin, check_reset_file, hash_password, reset_orphan_executions, verify_password,
+};

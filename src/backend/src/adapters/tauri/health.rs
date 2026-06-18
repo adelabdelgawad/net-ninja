@@ -10,7 +10,9 @@ pub(super) fn map_err<E: Into<AppError>>(e: E) -> String {
 
 // Extract SQLite pool
 pub(super) fn get_sqlite_pool(state: &AppState) -> Result<&sqlx::SqlitePool, String> {
-    state.pool.as_ref()
+    state
+        .pool
+        .as_ref()
         .ok_or_else(|| "Not available in fallback mode - Database connection required".to_string())
 }
 
@@ -52,7 +54,9 @@ pub struct FallbackStatusResponse {
 
 /// Check if the app is running in fallback mode
 #[tauri::command]
-pub async fn get_fallback_status(state: State<'_, AppState>) -> Result<FallbackStatusResponse, String> {
+pub async fn get_fallback_status(
+    state: State<'_, AppState>,
+) -> Result<FallbackStatusResponse, String> {
     Ok(FallbackStatusResponse {
         is_fallback: state.is_fallback_mode(),
         init_mode: format!("{:?}", state.init_mode),
@@ -79,87 +83,83 @@ pub struct ServiceStatusResponse {
     pub lock_holder: Option<String>,
 }
 
-/// Get the current status of the NetNinja Windows service
+/// Get the current status of the NetNinja Windows service.
 ///
-/// This function works even when the service feature is not enabled,
-/// returning installed=false and running=false in that case.
+/// Lock holder / heartbeat / version are read from the shared SQLite database
+/// (the `scheduler_lock` and `service_info` tables) and are meaningful on any
+/// platform. Installed/running come from the Windows Service Control Manager and
+/// are false when off-Windows or the `service` feature is disabled.
 #[tauri::command]
-pub async fn get_service_status() -> Result<ServiceStatusResponse, String> {
+pub async fn get_service_status(
+    state: State<'_, AppState>,
+) -> Result<ServiceStatusResponse, String> {
+    let (lock_holder, last_heartbeat, version) = match state.pool.as_ref() {
+        Some(pool) => {
+            let lock = crate::service::SchedulerLock::new(pool.clone());
+            let info = lock.get_lock_holder().await.ok().flatten();
+            let holder = info.as_ref().map(|i| i.holder.clone());
+            let heartbeat = info.as_ref().map(|i| i.heartbeat_at.to_rfc3339());
+            let ver = info.as_ref().and_then(|i| i.version.clone());
+
+            // Prefer the persisted service version stamp if present.
+            let ver = match crate::repositories::ServiceInfoRepository::get(pool, "service_version")
+                .await
+            {
+                Ok(Some((v, _))) => Some(v),
+                _ => ver,
+            };
+            (holder, heartbeat, ver)
+        }
+        None => (None, None, None),
+    };
+
+    let (installed, running) = service_installed_running();
+
+    Ok(ServiceStatusResponse {
+        installed,
+        running,
+        version,
+        last_heartbeat,
+        lock_holder,
+    })
+}
+
+/// Query the Service Control Manager for (installed, running).
+///
+/// Returns `(false, false)` off-Windows or when the `service` feature is off.
+fn service_installed_running() -> (bool, bool) {
     #[cfg(all(target_os = "windows", feature = "service"))]
     {
-        get_service_status_windows().await
+        use windows_service::{
+            service::{ServiceAccess, ServiceState},
+            service_manager::{ServiceManager, ServiceManagerAccess},
+        };
+
+        let manager =
+            match ServiceManager::local_computer(None::<&str>, ServiceManagerAccess::CONNECT) {
+                Ok(m) => m,
+                Err(e) => {
+                    tracing::warn!("Failed to connect to SCM: {}", e);
+                    return (false, false);
+                }
+            };
+
+        // Use the canonical service name (was previously hard-coded to "NetNinja",
+        // which never matched the installed "netninja-scheduler" → always false).
+        match manager.open_service(crate::service::SERVICE_NAME, ServiceAccess::QUERY_STATUS) {
+            Ok(service) => match service.query_status() {
+                Ok(status) => (true, status.current_state == ServiceState::Running),
+                Err(e) => {
+                    tracing::warn!("Failed to query service status: {}", e);
+                    (true, false)
+                }
+            },
+            Err(_) => (false, false), // not installed
+        }
     }
 
     #[cfg(not(all(target_os = "windows", feature = "service")))]
     {
-        // Service feature not enabled or not on Windows
-        Ok(ServiceStatusResponse {
-            installed: false,
-            running: false,
-            version: None,
-            last_heartbeat: None,
-            lock_holder: None,
-        })
+        (false, false)
     }
-}
-
-/// Windows-specific service status check
-#[cfg(all(target_os = "windows", feature = "service"))]
-async fn get_service_status_windows() -> Result<ServiceStatusResponse, String> {
-    use windows_service::{
-        service::ServiceAccess,
-        service_manager::{ServiceManager, ServiceManagerAccess},
-    };
-
-    const SERVICE_NAME: &str = "NetNinja";
-
-    // Try to connect to Service Control Manager
-    let manager = match ServiceManager::local_computer(
-        None::<&str>,
-        ServiceManagerAccess::CONNECT,
-    ) {
-        Ok(m) => m,
-        Err(e) => {
-            tracing::warn!("Failed to connect to SCM: {}", e);
-            return Ok(ServiceStatusResponse {
-                installed: false,
-                running: false,
-                version: None,
-                last_heartbeat: None,
-                lock_holder: None,
-            });
-        }
-    };
-
-    // Try to open the service
-    let service = match manager.open_service(
-        SERVICE_NAME,
-        ServiceAccess::QUERY_STATUS,
-    ) {
-        Ok(s) => s,
-        Err(_) => {
-            // Service not installed
-            return Ok(ServiceStatusResponse {
-                installed: false,
-                running: false,
-                version: None,
-                last_heartbeat: None,
-                lock_holder: None,
-            });
-        }
-    };
-
-    // Query service status
-    let status = service.query_status().map_err(|e| e.to_string())?;
-    let running = status.current_state == windows_service::service::ServiceState::Running;
-
-    // TODO: Implement heartbeat and lock holder detection via IPC or shared file
-    // For now, return basic installed/running status
-    Ok(ServiceStatusResponse {
-        installed: true,
-        running,
-        version: Some(env!("CARGO_PKG_VERSION").to_string()),
-        last_heartbeat: None,
-        lock_holder: if running { Some("service".to_string()) } else { None },
-    })
 }

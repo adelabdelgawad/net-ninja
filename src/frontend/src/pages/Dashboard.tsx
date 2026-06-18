@@ -20,6 +20,7 @@ import type { CombinedResult } from '~/types';
 import { cn } from '~/lib/utils';
 import { formatShortDateTime } from '~/lib/date';
 import { SpeedHistoryChart } from '~/components/charts/SpeedHistoryChart';
+import { SchedulerStatus } from '~/pages/dashboard/_components/SchedulerStatus';
 
 // --- Color helpers ---
 
@@ -144,6 +145,11 @@ export const Dashboard: Component = () => {
             icon={<Wifi class="h-3.5 w-3.5" />}
             valueClass={stats().errors === 0 ? 'text-[#4ec9b0]' : 'text-[#c72e0f]'}
           />
+        </div>
+
+        {/* Scheduler health & per-job last-run signals */}
+        <div class="mb-4">
+          <SchedulerStatus />
         </div>
 
         {/* Speed History Charts */}

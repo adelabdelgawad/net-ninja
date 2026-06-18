@@ -8,6 +8,7 @@ use crate::config::Settings;
 use crate::db::create_pool;
 use crate::errors::AppResult;
 use crate::models::{CreateSpeedTestResultRequest, Line};
+use crate::repositories::ServiceInfoRepository;
 use crate::services::{LineService, LogService, SpeedTestService};
 
 pub async fn run(_settings: &Settings) -> AppResult<()> {
@@ -16,7 +17,13 @@ pub async fn run(_settings: &Settings) -> AppResult<()> {
     // Create database pool for this job run
     let pool = create_pool().await?;
 
-    LogService::info(&pool, process_id, "speed_test_job::run", "Starting speed test job").await?;
+    LogService::info(
+        &pool,
+        process_id,
+        "speed_test_job::run",
+        "Starting speed test job",
+    )
+    .await?;
 
     // Get all lines
     let lines = LineService::get_all_with_credentials(&pool).await?;
@@ -35,9 +42,7 @@ pub async fn run(_settings: &Settings) -> AppResult<()> {
     for line in lines {
         let pool = pool.clone();
 
-        let handle = tokio::spawn(async move {
-            run_speed_test_for_line(&pool, &line).await
-        });
+        let handle = tokio::spawn(async move { run_speed_test_for_line(&pool, &line).await });
 
         handles.push(handle);
     }
@@ -71,6 +76,12 @@ pub async fn run(_settings: &Settings) -> AppResult<()> {
     )
     .await?;
 
+    // Instrumentation: record that the job ran to completion (per-line errors are
+    // tracked separately in speed_tests). Best-effort.
+    if let Err(e) = ServiceInfoRepository::record_job_success(&pool, "speed_test").await {
+        tracing::warn!("Failed to record speed_test last-success marker: {:?}", e);
+    }
+
     Ok(())
 }
 
@@ -92,36 +103,40 @@ async fn run_speed_test_for_line(pool: &SqlitePool, line: &Line) -> AppResult<()
 
     // Create SpeedTest client with source address binding if IP is configured
     let mut client: SpeedTestClient = match &line.ip_address {
-        Some(ip_str) => {
-            match ip_str.parse::<IpAddr>() {
-                Ok(ip) => {
-                    dlog.entry("IP_BIND", &format!("Binding speed test to IP: {}", ip));
-                    LogService::info_for_line(
-                        pool,
-                        process_id,
-                        line.id,
-                        "run_speed_test_for_line",
-                        &format!("Binding speed test to IP: {}", ip),
-                    )
-                    .await?;
-                    SpeedTestClient::with_source_address(ip)?
-                }
-                Err(e) => {
-                    dlog.entry("IP_BIND", &format!("Invalid IP address '{}': {}, using default", ip_str, e));
-                    LogService::warning_for_line(
-                        pool,
-                        process_id,
-                        line.id,
-                        "run_speed_test_for_line",
-                        &format!("Invalid IP address '{}': {}, using default", ip_str, e),
-                    )
-                    .await?;
-                    SpeedTestClient::new()?
-                }
+        Some(ip_str) => match ip_str.parse::<IpAddr>() {
+            Ok(ip) => {
+                dlog.entry("IP_BIND", &format!("Binding speed test to IP: {}", ip));
+                LogService::info_for_line(
+                    pool,
+                    process_id,
+                    line.id,
+                    "run_speed_test_for_line",
+                    &format!("Binding speed test to IP: {}", ip),
+                )
+                .await?;
+                SpeedTestClient::with_source_address(ip)?
             }
-        }
+            Err(e) => {
+                dlog.entry(
+                    "IP_BIND",
+                    &format!("Invalid IP address '{}': {}, using default", ip_str, e),
+                );
+                LogService::warning_for_line(
+                    pool,
+                    process_id,
+                    line.id,
+                    "run_speed_test_for_line",
+                    &format!("Invalid IP address '{}': {}, using default", ip_str, e),
+                )
+                .await?;
+                SpeedTestClient::new()?
+            }
+        },
         None => {
-            dlog.entry("IP_BIND", "No IP address configured, using default interface");
+            dlog.entry(
+                "IP_BIND",
+                "No IP address configured, using default interface",
+            );
             LogService::info_for_line(
                 pool,
                 process_id,

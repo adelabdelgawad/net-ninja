@@ -6,9 +6,14 @@
 //! - A task hung indefinitely
 //! - Network or browser issues caused a task to stall
 //!
-//! The job runs:
-//! - On app startup (to clean up orphaned executions from previous sessions)
-//! - Every 5 minutes (to catch newly timed-out executions)
+//! The job runs every 5 minutes (to catch newly timed-out executions).
+//!
+//! Note: orphaned executions from a previous session are NOT cleaned up by this
+//! job at startup — that is handled separately by `reset_all_unfinished` /
+//! `reset_all_running`, which every consumer runs on startup (service:
+//! `service/scheduler.rs`, desktop: `bootstrap/standalone.rs`, web:
+//! `app/src/startup.rs`). This job only sweeps executions that time out while the
+//! process is live.
 
 use sqlx::SqlitePool;
 
@@ -74,6 +79,19 @@ pub async fn run(pool: &SqlitePool) -> AppResult<()> {
                 "Failed to update task {} status to 'failed': {:?}",
                 execution.task_id,
                 e
+            );
+        }
+
+        // Best-effort: abort the actual in-process run. The DB flip above records
+        // the timeout regardless, but without this a genuinely hung task (e.g. a
+        // wedged browser scrape) keeps consuming resources. cancel() only finds
+        // tasks running in *this* process's registry — which is the scheduler-
+        // owning process that spawned the run — and is a no-op otherwise.
+        if crate::services::task_runtime::cancel(execution.task_id).await {
+            tracing::info!(
+                "Requested cancellation of hung task {} (execution {})",
+                execution.task_id,
+                execution.execution_id
             );
         }
     }

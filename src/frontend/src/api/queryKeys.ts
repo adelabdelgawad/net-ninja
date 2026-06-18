@@ -107,6 +107,7 @@ export const queryKeys = {
   scheduler: {
     all: ['scheduler'] as const,
     status: () => [...queryKeys.scheduler.all, 'status'] as const,
+    service: () => [...queryKeys.scheduler.all, 'service'] as const,
   },
 
   // SMTP Configs

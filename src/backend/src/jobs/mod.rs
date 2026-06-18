@@ -1,8 +1,8 @@
+pub mod cleanup_job;
+pub mod execution_timeout_job;
 pub mod quota_check_job;
 pub mod speed_test_job;
-pub mod cleanup_job;
 pub mod task_scheduler_job;
-pub mod execution_timeout_job;
 
 use std::sync::Arc;
 
@@ -11,6 +11,7 @@ use tokio_cron_scheduler::{Job, JobScheduler};
 
 use crate::config::Settings;
 use crate::errors::{AppError, AppResult};
+use crate::repositories::TaskRepository;
 
 pub struct JobRunner {
     scheduler: JobScheduler,
@@ -38,13 +39,43 @@ impl JobRunner {
             return Ok(());
         }
 
-        // Register quota check job
-        self.register_quota_check_job().await?;
+        // Tier-1 legacy config-cron jobs operate on ALL lines and are the
+        // out-of-the-box engine for fresh installs (which seed no tasks). Skip a
+        // legacy job when the user has defined active scheduled task(s) of that
+        // type, so the modern per-task path (retry + notifications + per-line
+        // records) owns it without duplicate scrapes/tests. Decided once at
+        // startup; creating a first task mid-session takes effect on next restart.
+        let (has_quota_tasks, has_speed_tasks) = match &self.pool {
+            Some(pool) => (
+                TaskRepository::count_active_scheduled_of_type(pool, "quota_check")
+                    .await
+                    .unwrap_or(0)
+                    > 0,
+                TaskRepository::count_active_scheduled_of_type(pool, "speed_test")
+                    .await
+                    .unwrap_or(0)
+                    > 0,
+            ),
+            None => (false, false),
+        };
 
-        // Register speed test job
-        self.register_speed_test_job().await?;
+        if has_quota_tasks {
+            tracing::info!(
+                "Active scheduled quota_check task(s) found; skipping legacy quota-check cron job"
+            );
+        } else {
+            self.register_quota_check_job().await?;
+        }
 
-        // Register cleanup job
+        if has_speed_tasks {
+            tracing::info!(
+                "Active scheduled speed_test task(s) found; skipping legacy speed-test cron job"
+            );
+        } else {
+            self.register_speed_test_job().await?;
+        }
+
+        // Register cleanup job (no per-task equivalent; always runs)
         self.register_cleanup_job().await?;
 
         // Register task scheduler job (runs every minute to check for scheduled tasks)
@@ -63,7 +94,9 @@ impl JobRunner {
         let settings = self.settings.clone();
         let cron = self.settings.quota_check.cron.clone();
 
-        let job = Job::new_async(cron.as_str(), move |_uuid, _lock| {
+        // Local timezone: wall-clock cron (e.g. "0 0 6 * * *") fires at 06:00
+        // LOCAL time, matching the per-task scheduler's Local::now() matching.
+        let job = Job::new_async_tz(cron.as_str(), chrono::Local, move |_uuid, _lock| {
             let settings = settings.clone();
             Box::pin(async move {
                 tracing::info!("Running quota check job");
@@ -79,7 +112,10 @@ impl JobRunner {
             .await
             .map_err(|e| AppError::Scheduler(format!("Failed to add quota check job: {}", e)))?;
 
-        tracing::info!("Quota check job registered with cron: {}", self.settings.quota_check.cron);
+        tracing::info!(
+            "Quota check job registered with cron: {}",
+            self.settings.quota_check.cron
+        );
         Ok(())
     }
 
@@ -87,7 +123,8 @@ impl JobRunner {
         let settings = self.settings.clone();
         let cron = self.settings.speed_test.cron.clone();
 
-        let job = Job::new_async(cron.as_str(), move |_uuid, _lock| {
+        // Local timezone (see register_quota_check_job).
+        let job = Job::new_async_tz(cron.as_str(), chrono::Local, move |_uuid, _lock| {
             let settings = settings.clone();
             Box::pin(async move {
                 tracing::info!("Running speed test job");
@@ -103,7 +140,10 @@ impl JobRunner {
             .await
             .map_err(|e| AppError::Scheduler(format!("Failed to add speed test job: {}", e)))?;
 
-        tracing::info!("Speed test job registered with cron: {}", self.settings.speed_test.cron);
+        tracing::info!(
+            "Speed test job registered with cron: {}",
+            self.settings.speed_test.cron
+        );
         Ok(())
     }
 
@@ -111,7 +151,8 @@ impl JobRunner {
         let settings = self.settings.clone();
         let cron = self.settings.cleanup.cron.clone();
 
-        let job = Job::new_async(cron.as_str(), move |_uuid, _lock| {
+        // Local timezone (see register_quota_check_job).
+        let job = Job::new_async_tz(cron.as_str(), chrono::Local, move |_uuid, _lock| {
             let settings = settings.clone();
             Box::pin(async move {
                 tracing::info!("Running cleanup job");
@@ -127,7 +168,10 @@ impl JobRunner {
             .await
             .map_err(|e| AppError::Scheduler(format!("Failed to add cleanup job: {}", e)))?;
 
-        tracing::info!("Cleanup job registered with cron: {}", self.settings.cleanup.cron);
+        tracing::info!(
+            "Cleanup job registered with cron: {}",
+            self.settings.cleanup.cron
+        );
         Ok(())
     }
 
@@ -165,7 +209,9 @@ impl JobRunner {
     /// Register the execution timeout job (runs every 5 minutes)
     async fn register_execution_timeout_job(&self) -> AppResult<()> {
         let pool = self.pool.clone().ok_or_else(|| {
-            AppError::Scheduler("Cannot register execution timeout job without database pool".to_string())
+            AppError::Scheduler(
+                "Cannot register execution timeout job without database pool".to_string(),
+            )
         })?;
 
         // Run every 5 minutes: "0 */5 * * * *" = at second 0 of every 5th minute
@@ -180,12 +226,13 @@ impl JobRunner {
                 }
             })
         })
-        .map_err(|e| AppError::Scheduler(format!("Failed to create execution timeout job: {}", e)))?;
+        .map_err(|e| {
+            AppError::Scheduler(format!("Failed to create execution timeout job: {}", e))
+        })?;
 
-        self.scheduler
-            .add(job)
-            .await
-            .map_err(|e| AppError::Scheduler(format!("Failed to add execution timeout job: {}", e)))?;
+        self.scheduler.add(job).await.map_err(|e| {
+            AppError::Scheduler(format!("Failed to add execution timeout job: {}", e))
+        })?;
 
         tracing::info!("Execution timeout job registered (runs every 5 minutes)");
         Ok(())

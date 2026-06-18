@@ -3,6 +3,7 @@ use uuid::Uuid;
 use crate::config::Settings;
 use crate::db::create_pool;
 use crate::errors::AppResult;
+use crate::repositories::ServiceInfoRepository;
 use crate::services::{LogService, QuotaCheckService, SpeedTestService};
 
 pub async fn run(settings: &Settings) -> AppResult<()> {
@@ -42,6 +43,11 @@ pub async fn run(settings: &Settings) -> AppResult<()> {
         ),
     )
     .await?;
+
+    // Instrumentation: record successful completion (best-effort).
+    if let Err(e) = ServiceInfoRepository::record_job_success(&pool, "cleanup").await {
+        tracing::warn!("Failed to record cleanup last-success marker: {:?}", e);
+    }
 
     Ok(())
 }

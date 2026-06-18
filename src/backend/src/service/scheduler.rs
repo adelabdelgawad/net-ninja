@@ -165,13 +165,40 @@ pub async fn run_scheduler_loop() -> AppResult<SchedulerHandle> {
     // Run any pending migrations
     run_pending_migrations(&pool).await?;
 
+    // Startup crash recovery: reset any tasks/executions stuck in "running".
+    // The service is long-running and may be killed mid-execution (crash, forced
+    // stop, machine power-off); nothing is actually running immediately after a
+    // (re)start. Without this, an orphaned task stays 'running' and is silently
+    // excluded from all future scheduling. Mirrors the desktop path in
+    // `bootstrap/standalone.rs`.
+    {
+        use crate::repositories::{TaskExecutionRepository, TaskRepository};
+
+        match TaskExecutionRepository::reset_all_unfinished(&pool).await {
+            Ok(n) if n > 0 => tracing::info!("Reset {} orphaned execution(s) to 'failed'", n),
+            Ok(_) => tracing::debug!("No orphaned executions found"),
+            Err(e) => tracing::warn!("Failed to reset orphaned executions: {:?}", e),
+        }
+
+        match TaskRepository::reset_all_running(&pool).await {
+            Ok(n) if n > 0 => {
+                tracing::info!("Reset {} orphaned task(s) from 'running' to 'failed'", n)
+            }
+            Ok(_) => tracing::debug!("No orphaned running tasks found"),
+            Err(e) => tracing::warn!("Failed to reset orphaned tasks: {:?}", e),
+        }
+    }
+
     // Initialize and acquire the scheduler lock
     let scheduler_lock = SchedulerLock::new(pool.clone());
     scheduler_lock.initialize().await?;
 
     // Try to acquire the scheduler lock
     // This will fail immediately if another instance holds an active lock
-    if !scheduler_lock.try_acquire("service", Some(SERVICE_VERSION)).await? {
+    if !scheduler_lock
+        .try_acquire("service", Some(SERVICE_VERSION))
+        .await?
+    {
         // Check who holds the lock for a more informative error message
         if let Some(lock_info) = scheduler_lock.get_lock_holder().await? {
             return Err(AppError::Scheduler(format!(
@@ -182,7 +209,7 @@ pub async fn run_scheduler_loop() -> AppResult<SchedulerHandle> {
             )));
         } else {
             return Err(AppError::Scheduler(
-                "Scheduler lock could not be acquired (race condition?)".to_string()
+                "Scheduler lock could not be acquired (race condition?)".to_string(),
             ));
         }
     }
@@ -228,12 +255,17 @@ pub async fn run_scheduler_loop() -> AppResult<SchedulerHandle> {
 /// * `shutdown_rx` - Channel receiver for shutdown signal
 /// * `job_runner` - The job runner to shut down on exit
 async fn run_loop_inner(
-    _pool: SqlitePool,  // Kept for potential future use
+    _pool: SqlitePool, // Kept for potential future use
     scheduler_lock: SchedulerLock,
     mut shutdown_rx: oneshot::Receiver<()>,
     mut job_runner: JobRunner,
 ) -> AppResult<()> {
     let mut heartbeat_interval = interval(Duration::from_secs(HEARTBEAT_INTERVAL_SECS));
+
+    // Set when the heartbeat reports the lock was taken over by another instance.
+    // In that case we must STOP scheduling (to avoid two concurrent schedulers)
+    // and must NOT release the lock — the row now belongs to the new holder.
+    let mut lock_lost = false;
 
     loop {
         tokio::select! {
@@ -250,10 +282,13 @@ async fn run_loop_inner(
                         tracing::trace!("Heartbeat updated successfully");
                     }
                     Ok(false) => {
-                        // Lock was lost - this is a serious error
-                        tracing::error!("Scheduler lock was lost! Another instance may have taken over.");
-                        // Continue running but log the warning
-                        // The service should ideally be restarted in this case
+                        // Lock was lost — another instance took over after we went
+                        // stale. Stop scheduling immediately so we don't run jobs
+                        // concurrently with the new holder. SCM's restart-on-failure
+                        // policy will bring us back to re-arbitrate cleanly.
+                        tracing::error!("Scheduler lock was lost! Another instance has taken over. Stopping scheduler to prevent duplicate execution.");
+                        lock_lost = true;
+                        break;
                     }
                     Err(e) => {
                         tracing::warn!("Failed to update heartbeat: {}", e);
@@ -264,9 +299,18 @@ async fn run_loop_inner(
         }
     }
 
-    // Graceful shutdown
+    // Graceful shutdown — always stop the jobs.
     tracing::info!("Stopping job scheduler...");
     job_runner.shutdown().await?;
+
+    if lock_lost {
+        // Do NOT release: the lock row is now owned by whoever took over.
+        // Returning an error makes the service exit non-zero so SCM restarts it.
+        tracing::warn!("Exiting without releasing lock (it is held by another instance)");
+        return Err(AppError::Scheduler(
+            "Scheduler lock was lost to another instance".to_string(),
+        ));
+    }
 
     tracing::info!("Releasing scheduler lock...");
     scheduler_lock.release().await?;

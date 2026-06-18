@@ -40,7 +40,14 @@ pub async fn run(settings: Settings) -> AppResult<()> {
                 #[cfg(feature = "tauri-app")]
                 return run_tauri_fallback(state);
                 #[cfg(not(feature = "tauri-app"))]
-                return Err(AppError::Internal(format!("Database unavailable: {}", state.init_error.as_deref().map(|s| s.as_str()).unwrap_or("unknown"))));
+                return Err(AppError::Internal(format!(
+                    "Database unavailable: {}",
+                    state
+                        .init_error
+                        .as_deref()
+                        .map(|s| s.as_str())
+                        .unwrap_or("unknown")
+                )));
             } else {
                 return Err(e);
             }
@@ -54,13 +61,21 @@ pub async fn run(settings: Settings) -> AppResult<()> {
             let error_msg = e.to_string();
             if error_msg.contains("database is locked")
                 || error_msg.contains("corrupt")
-                || error_msg.contains("disk I/O error") {
+                || error_msg.contains("disk I/O error")
+            {
                 tracing::warn!("Migration failed ({}), entering fallback mode", error_msg);
                 let state = AppState::new_fallback(settings, error_msg, encryption_key);
                 #[cfg(feature = "tauri-app")]
                 return run_tauri_fallback(state);
                 #[cfg(not(feature = "tauri-app"))]
-                return Err(AppError::Internal(format!("Migration failed: {}", state.init_error.as_deref().map(|s| s.as_str()).unwrap_or("unknown"))));
+                return Err(AppError::Internal(format!(
+                    "Migration failed: {}",
+                    state
+                        .init_error
+                        .as_deref()
+                        .map(|s| s.as_str())
+                        .unwrap_or("unknown")
+                )));
             } else {
                 return Err(e);
             }
@@ -79,7 +94,9 @@ pub async fn run(settings: Settings) -> AppResult<()> {
         }
 
         match TaskRepository::reset_all_running(&pool).await {
-            Ok(n) if n > 0 => tracing::info!("Reset {} orphaned task(s) from 'running' to 'failed'", n),
+            Ok(n) if n > 0 => {
+                tracing::info!("Reset {} orphaned task(s) from 'running' to 'failed'", n)
+            }
             Ok(_) => tracing::debug!("No orphaned running tasks found"),
             Err(e) => tracing::warn!("Failed to reset orphaned tasks: {:?}", e),
         }
@@ -110,7 +127,9 @@ pub async fn run(settings: Settings) -> AppResult<()> {
                         lock_info.acquired_at,
                         lock_info.heartbeat_at
                     );
-                    tracing::info!("Desktop scheduler will NOT start - service is managing scheduled tasks");
+                    tracing::info!(
+                        "Desktop scheduler will NOT start - service is managing scheduled tasks"
+                    );
                     (None, None, None)
                 } else {
                     // Lock is stale or held by desktop (stale from previous run)
@@ -126,7 +145,8 @@ pub async fn run(settings: Settings) -> AppResult<()> {
                     }
 
                     // Attempt to acquire the lock and start scheduler
-                    start_scheduler_with_lock(settings.clone(), pool.clone(), scheduler_lock).await?
+                    start_scheduler_with_lock(settings.clone(), pool.clone(), scheduler_lock)
+                        .await?
                 }
             }
             Ok(None) => {
@@ -135,14 +155,15 @@ pub async fn run(settings: Settings) -> AppResult<()> {
                 start_scheduler_with_lock(settings.clone(), pool.clone(), scheduler_lock).await?
             }
             Err(e) => {
+                // Fail closed: if we cannot read the lock, we cannot prove the
+                // Windows service isn't already scheduling. Starting anyway would
+                // risk two concurrent schedulers (duplicate scrapes/emails). Skip
+                // desktop scheduling for this session instead of guessing.
                 tracing::warn!("Failed to check scheduler lock: {:?}", e);
-                // Fall back to starting without lock coordination
-                tracing::info!("Starting scheduler without lock coordination due to error");
-                let runner = JobRunner::with_pool(Arc::new(settings.clone()), pool.clone()).await?;
-                runner.register_jobs().await?;
-                runner.start().await?;
-                tracing::info!("Job scheduler started (no lock coordination)");
-                (Some(runner), None, None)
+                tracing::warn!(
+                    "Desktop scheduler will NOT start this session (cannot verify lock state)"
+                );
+                (None, None, None)
             }
         }
     } else {
@@ -166,12 +187,19 @@ async fn start_scheduler_with_lock(
     settings: Settings,
     pool: sqlx::SqlitePool,
     scheduler_lock: SchedulerLock,
-) -> AppResult<(Option<JobRunner>, Option<SchedulerLock>, Option<Arc<AtomicBool>>)> {
+) -> AppResult<(
+    Option<JobRunner>,
+    Option<SchedulerLock>,
+    Option<Arc<AtomicBool>>,
+)> {
     // Get application version for lock metadata
     let version = option_env!("CARGO_PKG_VERSION").map(String::from);
 
     // Attempt to acquire the lock
-    match scheduler_lock.try_acquire("desktop", version.as_deref()).await {
+    match scheduler_lock
+        .try_acquire("desktop", version.as_deref())
+        .await
+    {
         Ok(true) => {
             tracing::info!("Scheduler lock acquired by desktop application");
 
@@ -204,8 +232,16 @@ async fn start_scheduler_with_lock(
                             tracing::trace!("Scheduler lock heartbeat sent");
                         }
                         Ok(false) => {
-                            tracing::warn!("Scheduler lock heartbeat failed - lock may have been lost");
-                            // Don't break here - let the main app decide what to do
+                            // Lock lost / taken over by another instance. Stop the
+                            // heartbeat so we stop contending for a lock we no longer
+                            // hold. NOTE: the desktop JobRunner is owned by the Tauri
+                            // layer and is not stopped from here — documented residual
+                            // (full desktop scheduler-stop needs a handle into the
+                            // Tauri-managed runner; tracked as follow-up).
+                            tracing::error!(
+                                "Scheduler lock lost — stopping heartbeat task to stop contending"
+                            );
+                            break;
                         }
                         Err(e) => {
                             tracing::warn!("Failed to send scheduler lock heartbeat: {:?}", e);
@@ -231,14 +267,14 @@ async fn start_scheduler_with_lock(
             Ok((None, None, None))
         }
         Err(e) => {
+            // Fail closed: do not start a second, uncoordinated scheduler when we
+            // cannot confirm we hold the lock. A skipped desktop session is far
+            // safer than two schedulers running concurrently.
             tracing::warn!("Error acquiring scheduler lock: {:?}", e);
-            // Fall back to starting without lock
-            tracing::info!("Starting scheduler without lock coordination due to error");
-            let runner = JobRunner::with_pool(Arc::new(settings), pool).await?;
-            runner.register_jobs().await?;
-            runner.start().await?;
-            tracing::info!("Job scheduler started (no lock coordination)");
-            Ok((Some(runner), None, None))
+            tracing::warn!(
+                "Desktop scheduler will NOT start this session (lock acquisition failed)"
+            );
+            Ok((None, None, None))
         }
     }
 }
@@ -270,7 +306,10 @@ fn run_tauri_app(
                     rt.block_on(async {
                         match lock.release().await {
                             Ok(()) => tracing::info!("Scheduler lock released on shutdown"),
-                            Err(e) => tracing::warn!("Failed to release scheduler lock on shutdown: {:?}", e),
+                            Err(e) => tracing::warn!(
+                                "Failed to release scheduler lock on shutdown: {:?}",
+                                e
+                            ),
                         }
                     });
                 } else {
