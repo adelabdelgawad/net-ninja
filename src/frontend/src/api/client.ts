@@ -29,6 +29,8 @@ import type {
   UpsertTaskNotificationConfig,
   RuntimeNotificationConfig,
   ResendNotificationRequest,
+  SchedulerStatusResponse,
+  ServiceStatusResponse,
 } from '../types';
 
 import { invoke } from '@tauri-apps/api/core';
@@ -170,6 +172,12 @@ export const taskNotificationApi = {
     tauriInvoke<TaskNotificationConfig>('upsert_task_notification_config', { taskId, req: data }),
   resend: (data: ResendNotificationRequest) =>
     tauriInvoke<void>('resend_task_notification', { req: data }),
+};
+
+// Scheduler / service status endpoints
+export const schedulerApi = {
+  getStatus: () => tauriInvoke<SchedulerStatusResponse>('get_scheduler_status'),
+  getServiceStatus: () => tauriInvoke<ServiceStatusResponse>('get_service_status'),
 };
 
 // App endpoints

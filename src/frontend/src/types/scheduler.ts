@@ -21,6 +21,26 @@ export interface JobDetail extends Job {
 }
 
 export interface SchedulerStatusResponse {
+  /** "running" (a fresh scheduler lock is held), "idle", or "unknown" (fallback mode). */
   status: string;
   isRunning: boolean;
+  /** Who holds the scheduler lock: "service", "desktop", or null. */
+  lockHolder: string | null;
+  /** ISO timestamp of the last scheduler heartbeat. */
+  lastHeartbeat: string | null;
+  /** Map of job name ("quota_check" | "speed_test" | "cleanup") -> ISO timestamp of last success. */
+  lastRuns: Record<string, string>;
+}
+
+export interface ServiceStatusResponse {
+  /** Whether the Windows service is registered with the SCM. */
+  installed: boolean;
+  /** Whether the Windows service is currently running. */
+  running: boolean;
+  /** Reported scheduler/service version, if known. */
+  version: string | null;
+  /** ISO timestamp of the last scheduler heartbeat. */
+  lastHeartbeat: string | null;
+  /** Who holds the scheduler lock: "service", "desktop", or null. */
+  lockHolder: string | null;
 }

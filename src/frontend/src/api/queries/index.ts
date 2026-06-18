@@ -43,3 +43,6 @@ export {
   useRecentExecutionsQuery,
   useScheduledTasksQuery,
 } from './dashboard';
+
+// Scheduler / service status
+export { useSchedulerStatusQuery, useServiceStatusQuery } from './scheduler';
