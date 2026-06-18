@@ -6,9 +6,14 @@
 //! - A task hung indefinitely
 //! - Network or browser issues caused a task to stall
 //!
-//! The job runs:
-//! - On app startup (to clean up orphaned executions from previous sessions)
-//! - Every 5 minutes (to catch newly timed-out executions)
+//! The job runs every 5 minutes (to catch newly timed-out executions).
+//!
+//! Note: orphaned executions from a previous session are NOT cleaned up by this
+//! job at startup — that is handled separately by `reset_all_unfinished` /
+//! `reset_all_running`, which every consumer runs on startup (service:
+//! `service/scheduler.rs`, desktop: `bootstrap/standalone.rs`, web:
+//! `app/src/startup.rs`). This job only sweeps executions that time out while the
+//! process is live.
 
 use sqlx::SqlitePool;
 
